@@ -5,6 +5,7 @@ import {
   createOrderSchema,
   currentStageDue,
   newDeliveryOtp,
+  secureRandomInt,
 } from './orders';
 
 const sla = { accept: 2, pick: 10, pack: 5, handover: 5, ride: 35 };
@@ -111,7 +112,17 @@ describe('order schemas', () => {
   });
 
   it('makes 4 digit codes, keeping leading zeros', () => {
-    expect(newDeliveryOtp(() => 0.0042)).toBe('0042');
-    expect(newDeliveryOtp(() => 0.99999)).toBe('9999');
+    expect(newDeliveryOtp(() => 42)).toBe('0042');
+    expect(newDeliveryOtp(() => 9999)).toBe('9999');
+  });
+
+  it('draws codes from the cryptographic generator, every one 4 digits', () => {
+    const codes = Array.from({ length: 200 }, () => newDeliveryOtp());
+    for (const c of codes) expect(c).toMatch(/^\d{4}$/);
+    expect(new Set(codes).size).toBeGreaterThan(150);
+    for (let i = 0; i < 100; i++) {
+      const n = secureRandomInt(7);
+      expect(Number.isInteger(n) && n >= 0 && n < 7).toBe(true);
+    }
   });
 });

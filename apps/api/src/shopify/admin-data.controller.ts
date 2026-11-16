@@ -8,8 +8,9 @@ import {
   orderHistoryCoverage,
   recordAudit,
 } from '@shiplynow/db';
-import type { AccessTokenClaims } from '@shiplynow/shared';
-import { Access, CurrentUser } from '../auth/decorators';
+import type { AccessProfile, AccessTokenClaims } from '@shiplynow/shared';
+import { limitedMerchants } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { ShopDataService } from './shop-data.service';
 
@@ -26,10 +27,17 @@ export class AdminDataController {
 
   /** Every merchant together, with the order history we hold of each store. */
   @Get('market')
-  async market() {
+  async market(@CurrentAccess() access: AccessProfile | undefined) {
+    const market = await marketInsights(this.prisma);
+    const history = await orderHistoryCoverage(this.prisma);
+    const merchants = limitedMerchants(access);
+    if (!merchants) return { ...market, orderHistory: history };
+    // Account managers: the market totals (no names) and only their merchants by name.
+    const mine = new Set(merchants);
     return {
-      ...(await marketInsights(this.prisma)),
-      orderHistory: await orderHistoryCoverage(this.prisma),
+      ...market,
+      merchants: market.merchants.filter((m) => mine.has(m.id)),
+      orderHistory: history.filter((h) => mine.has(h.merchantId)),
     };
   }
 

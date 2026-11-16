@@ -546,6 +546,59 @@ describe('delivery', () => {
     expect(alert.data).toEqual({ expected: 4000, collected: 3000 });
   });
 
+  it('locks the code after delivery.max_wrong_codes wrong ones, alerting once', async () => {
+    const { id, delivery } = await outForDelivery();
+    const { deliveryOtp } = await prisma.order.findUniqueOrThrow({ where: { id } });
+    const wrong = deliveryOtp === '0000' ? '1111' : '0000';
+    const tryCode = (otp: string) =>
+      completeDelivery(prisma, {
+        deliveryId: delivery.id,
+        riderUserId: riderUser,
+        otp,
+        codCollectedPiastres: 4000,
+      });
+    for (let i = 0; i < 5; i++)
+      await expect(tryCode(wrong)).rejects.toMatchObject({ code: 'wrong_otp' });
+    expect(
+      (await prisma.delivery.findUniqueOrThrow({ where: { id: delivery.id } })).otpFailures,
+    ).toBe(5);
+    // Even the right code is refused now: guessing stops, the photo still works.
+    await expect(tryCode(deliveryOtp)).rejects.toMatchObject({ code: 'otp_locked' });
+    await expect(tryCode(wrong)).rejects.toMatchObject({ code: 'otp_locked' });
+    const alerts = await prisma.alert.findMany({ where: { type: 'otp_locked', orderId: id } });
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.data).toMatchObject({ count: 5 });
+    await completeDelivery(prisma, {
+      deliveryId: delivery.id,
+      riderUserId: riderUser,
+      photoId: await doorPhoto(),
+      codCollectedPiastres: 4000,
+    });
+    expect((await prisma.order.findUniqueOrThrow({ where: { id } })).status).toBe('delivered');
+  });
+
+  it('lets a right code through below the limit', async () => {
+    const { id, delivery } = await outForDelivery();
+    const { deliveryOtp } = await prisma.order.findUniqueOrThrow({ where: { id } });
+    const wrong = deliveryOtp === '0000' ? '1111' : '0000';
+    for (let i = 0; i < 4; i++)
+      await expect(
+        completeDelivery(prisma, {
+          deliveryId: delivery.id,
+          riderUserId: riderUser,
+          otp: wrong,
+          codCollectedPiastres: 4000,
+        }),
+      ).rejects.toMatchObject({ code: 'wrong_otp' });
+    await completeDelivery(prisma, {
+      deliveryId: delivery.id,
+      riderUserId: riderUser,
+      otp: deliveryOtp,
+      codCollectedPiastres: 4000,
+    });
+    expect(await prisma.alert.count({ where: { type: 'otp_locked' } })).toBe(0);
+  });
+
   it('only lets the assigned rider close the delivery', async () => {
     const { delivery } = await outForDelivery();
     await expect(

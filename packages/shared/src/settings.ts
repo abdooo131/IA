@@ -100,6 +100,13 @@ export const SETTING_DEFINITIONS = {
       'Calls the rider must make from the app before reporting that the customer did not answer',
     override: 'store',
   },
+  'delivery.max_wrong_codes': {
+    schema: z.number().int().min(1).max(20),
+    default: 5,
+    description:
+      'Wrong delivery codes a rider may type for one delivery before the code is locked and only a handover photo proves it',
+    override: 'none',
+  },
   'tracking.rider_ping_seconds': {
     schema: z.number().int().min(5).max(300),
     default: 20,

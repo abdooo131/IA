@@ -1201,6 +1201,17 @@ describe('shopify app', () => {
     // A signature from no app of ours changes nothing.
     expect((await open('someone-else').expect(302)).headers.location).toContain('invalid_request');
     expect((await prisma.shopifyShop.findFirstOrThrow()).appId).toBeNull();
+    // An app that is not this merchant's own (admin's, or another merchant's) moves nothing.
+    expect((await open(SECRET2).expect(302)).headers.location).toContain('invalid_request');
+    const other = await prisma.merchant.create({ data: { name: 'Other merchant' } });
+    await prisma.shopifyApp.update({
+      where: { id: added.body.id },
+      data: { merchantId: other.id },
+    });
+    expect((await open(SECRET2).expect(302)).headers.location).toContain('invalid_request');
+    expect((await prisma.shopifyShop.findFirstOrThrow()).appId).toBeNull();
+    // The merchant's own app (saved through merchant self service) is followed.
+    await prisma.shopifyApp.update({ where: { id: added.body.id }, data: { merchantId } });
     // Opened from the custom app: the store now uses it, and install asks for that app.
     const res = await open(SECRET2).expect(302);
     expect(res.headers.location).toContain('/api/shopify/install?shop=');
@@ -1211,6 +1222,71 @@ describe('shopify app', () => {
     expect(new URL(start.headers.location!).searchParams.get('client_id')).toBe(
       'later-custom-client',
     );
+  });
+
+  it('never moves a store away from the app admin chose, nor to another merchant', async () => {
+    fake.denyClientCredentials = true;
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const chosen = await admin
+      .post('/admin/shopify/apps')
+      .send({ name: 'Admin app', clientId: 'admin-chosen-client', clientSecret: 'admin-secret-1' })
+      .expect(201);
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test', appId: chosen.body.id })
+      .expect(201);
+    // A self signed up merchant saves an app of their own and tries to pull the store over.
+    const signer = await prisma.merchant.create({ data: { name: 'Attacker' } });
+    const ATTACK = 'attacker-app-secret';
+    const evil = await prisma.shopifyApp.create({
+      data: {
+        name: 'Attacker app',
+        clientId: 'attacker-client',
+        clientSecretEnc: sealToken(ATTACK, SECRET),
+        merchantId: signer.id,
+      },
+    });
+    const params = { shop: SHOP, timestamp: '1700000000', host: 'abc' };
+    const signWith = (secret: string) =>
+      createHmac('sha256', secret)
+        .update(
+          Object.keys(params)
+            .sort()
+            .map((k) => `${k}=${params[k as keyof typeof params]}`)
+            .join('&'),
+        )
+        .digest('hex');
+    const open = (secret: string) =>
+      request(app.getHttpServer())
+        .get('/shopify/app')
+        .query({ ...params, hmac: signWith(secret) });
+    expect((await open(ATTACK).expect(302)).headers.location).toContain('invalid_request');
+    // Even the merchant's own app does not override the app admin chose.
+    await prisma.shopifyApp.update({ where: { id: evil.id }, data: { merchantId } });
+    expect((await open(ATTACK).expect(302)).headers.location).toContain('invalid_request');
+    expect((await prisma.shopifyShop.findFirstOrThrow()).appId).toBe(chosen.body.id);
+    // Webhooks for this store are checked with its own app's secret only.
+    const body = JSON.stringify({ id: 1 });
+    const hook = (secret: string) =>
+      request(app.getHttpServer())
+        .post('/shopify/webhooks')
+        .set('content-type', 'application/json')
+        .set('x-shopify-topic', 'shop/update')
+        .set('x-shopify-shop-domain', SHOP)
+        .set('x-shopify-hmac-sha256', createHmac('sha256', secret).update(body).digest('base64'))
+        .send(body);
+    await hook(ATTACK).expect(401);
+    await hook(SECRET).expect(401);
+    await hook('admin-secret-1').expect(200);
+    // A store we have no row for (compliance webhooks after a removal) takes any app we hold.
+    await request(app.getHttpServer())
+      .post('/shopify/webhooks')
+      .set('content-type', 'application/json')
+      .set('x-shopify-topic', 'shop/redact')
+      .set('x-shopify-shop-domain', 'gone-store.myshopify.com')
+      .set('x-shopify-hmac-sha256', createHmac('sha256', ATTACK).update(body).digest('base64'))
+      .send(body)
+      .expect(200);
   });
 
   it('connects a store through its own organization app with no merchant step', async () => {
@@ -1275,6 +1351,7 @@ describe('shopify app', () => {
       where: { clientId: 'merchant-own-app' },
     });
     expect(saved.clientSecretEnc).not.toContain('merchant-secret-1');
+    expect(saved.merchantId).toBe(merchantId);
 
     // Once Shopify allows it, checking again connects with no merchant step.
     fake.denyClientCredentials = false;
@@ -1320,6 +1397,37 @@ describe('shopify app', () => {
       .post('/merchant/shopify/connect')
       .send({ ...app1, shopDomain: 'another-store' })
       .expect(409, { error: 'app_used_by_other_merchant' });
+  });
+
+  it('never lets a merchant take over an app they did not save, even one with no store', async () => {
+    const merchant = await agent('merchant@evechantelle.example');
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    // An app admin added, not linked to any store yet.
+    await admin
+      .post('/admin/shopify/apps')
+      .send({ name: 'Admin app', clientId: 'admin-only-client', clientSecret: 'admin-secret-1' })
+      .expect(201);
+    // An app another merchant saved, with no store yet.
+    const other = await prisma.merchant.create({ data: { name: 'Other merchant' } });
+    await prisma.shopifyApp.create({
+      data: {
+        name: 'Other',
+        clientId: 'other-merchant-client',
+        clientSecretEnc: sealToken('other-secret-1', SECRET),
+        merchantId: other.id,
+      },
+    });
+    for (const clientId of ['admin-only-client', 'other-merchant-client'])
+      await merchant
+        .post('/merchant/shopify/connect')
+        .send({ shopDomain: 'shiplynow-test', clientId, clientSecret: 'replaced-secret-1' })
+        .expect(409, { error: 'app_used_by_other_merchant' });
+    const kept = await prisma.shopifyApp.findUniqueOrThrow({
+      where: { clientId: 'other-merchant-client' },
+    });
+    // Its secret was not replaced.
+    expect(openToken(kept.clientSecretEnc, SECRET)).toBe('other-secret-1');
+    expect(await prisma.shopifyShop.count()).toBe(0);
   });
 
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {

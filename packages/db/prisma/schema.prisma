@@ -457,6 +457,7 @@ model Merchant {
   payoutStatements PayoutStatement[]
 
   shopifyShop ShopifyShop?
+  shopifyApps ShopifyApp[]
 
   ledgerLines LedgerLine[]
   alerts      Alert[]
@@ -1191,6 +1192,9 @@ model Delivery {
   returnedAt           DateTime?      @map("returned_at")
   proofPhotoId         String?        @map("proof_photo_id")
   otpVerified          Boolean        @default(false) @map("otp_verified")
+  /// Wrong delivery codes typed on this delivery; at delivery.max_wrong_codes the code is
+  /// locked and the rider proves the handover with a photo
+  otpFailures          Int            @default(0) @map("otp_failures")
   /// What the rider had to collect when the order left the store
   codExpectedPiastres  Int            @default(0) @map("cod_expected_piastres")
   codCollectedPiastres Int?           @map("cod_collected_piastres")
@@ -2426,10 +2430,14 @@ model ShopifyApp {
   name            String
   clientId        String   @unique @map("client_id")
   clientSecretEnc String   @map("client_secret_enc")
+  /// The merchant who saved this app (merchant self service); null: added by admin
+  merchantId      String?  @map("merchant_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  shops ShopifyShop[]
+  shops    ShopifyShop[]
+  merchant Merchant?     @relation(fields: [merchantId], references: [id], onDelete: Restrict)
 
+  @@index([merchantId])
   @@map("shopify_apps")
 }
 

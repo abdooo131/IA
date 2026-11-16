@@ -62,6 +62,33 @@ export class ShopifyPublicController {
     return (await this.shopify.allSecrets()).some(check);
   }
 
+  /**
+   * Why a store not connected yet may not follow the app it was opened from (null: it may).
+   * The signer must be an app saved by the store's own merchant, and the store's current app
+   * must not be one admin added (admin's choice stands; admin relinks to change it).
+   */
+  private async switchRefusal(
+    linked: { merchantId: string; appId: string | null },
+    signer: string | null,
+  ): Promise<string | null> {
+    if (linked.appId) {
+      const current = await this.prisma.shopifyApp.findUnique({
+        where: { id: linked.appId },
+        select: { merchantId: true },
+      });
+      if (!current?.merchantId) return 'this store uses an app admin chose';
+    }
+    const app = signer
+      ? await this.prisma.shopifyApp.findUnique({
+          where: { id: signer },
+          select: { merchantId: true },
+        })
+      : null;
+    if (!app || app.merchantId !== linked.merchantId)
+      return "opened from an app that is not this store's merchant's own";
+    return null;
+  }
+
   /** Starts installation for a shop that admin linked to a merchant. */
   @Get('install')
   async install(@Query('shop') shop: string, @Res() res: Response) {
@@ -137,14 +164,20 @@ export class ShopifyPublicController {
     if (signer === undefined) return this.done(res, { error: 'invalid_request' });
     if (linked && signer !== linked.appId) {
       // The merchant opened one of our apps that is not the one this store was linked with
-      // (often: linked first, custom app added after). A store not connected yet simply
-      // follows the app it opened; a connected store keeps its app.
-      if (linked.status === 'active') {
+      // (often: linked first, custom app added after). A store not connected yet follows the
+      // app it opened, but only an app saved by the store's own merchant, and never away from
+      // an app admin chose; a connected store keeps its app. Otherwise anyone who saved an app
+      // could move a store to it and sign that store's webhooks.
+      const refusal =
+        linked.status === 'active'
+          ? 'opened from another of our apps than the one this store is connected with'
+          : await this.switchRefusal(linked, signer);
+      if (refusal) {
         await this.shopify.record(linked.id, {
           direction: 'in',
           kind: 'app_open',
           ok: false,
-          message: 'opened from another of our apps than the one this store is connected with',
+          message: refusal,
         });
         return this.done(res, { error: 'invalid_request' });
       }

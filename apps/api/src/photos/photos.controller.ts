@@ -1,11 +1,35 @@
 import { Controller, Get, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DomainError, savePhoto } from '@shiplynow/db';
-import { type AccessTokenClaims, canDo } from '@shiplynow/shared';
+import { DomainError, managerOf, type Prisma, savePhoto } from '@shiplynow/db';
+import {
+  type AccessTokenClaims,
+  canDo,
+  canUseMerchant,
+  canUseStore,
+  isTeamRole,
+} from '@shiplynow/shared';
 import type { Request, Response } from 'express';
 import { loadAccess } from '../auth/access.guard';
 import { type AuthedRequest, CurrentUser, Roles } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
+
+const ORDER_LINK = { select: { merchantId: true, darkStoreId: true } } as const;
+
+/** Every record a stored file can belong to, read to decide who may open it. */
+const PHOTO_LINKS = {
+  packedFor: {
+    select: { merchantId: true, darkStoreId: true, deliveries: { select: { riderId: true } } },
+  },
+  deliveries: { select: { riderId: true, order: ORDER_LINK } },
+  failedDeliveries: { select: { riderId: true, order: ORDER_LINK } },
+  pettyCash: { select: { darkStoreId: true } },
+  expenseClaims: {
+    select: { userId: true, employeeId: true, managerEmployeeId: true, managerDecidedById: true },
+  },
+  basataDeposits: { select: { riderId: true } },
+} as const satisfies Prisma.PhotoInclude;
+
+type PhotoWithLinks = Prisma.PhotoGetPayload<{ include: typeof PHOTO_LINKS }>;
 
 /** The first bytes every file of each allowed type starts with. */
 function isImage(contentType: string, data: Buffer) {
@@ -64,28 +88,26 @@ export class PhotosController {
     });
   }
 
-  /** Staff, riders and admin see any proof photo; a merchant only those of their own orders. */
+  /**
+   * A file opens only for the people its record concerns, decided by its kind and links;
+   * anyone else gets 404 photo_not_found, so an id reveals nothing. The uploader always may.
+   * - pack and delivery proof: operations or store view on the order's store (inside the
+   *   person's stores and merchants), the order's rider, or the order's merchant;
+   * - receipts (finance attachments, cheques, petty cash, expense claims, purchase order
+   *   quotes) and Basata receipts: accounting view, or the record's own people (the rider's
+   *   own Basata deposit, the claimant and their manager, staff of the petty cash's store).
+   * HR files have their own routes.
+   */
   @Get(':id')
-  async get(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims, @Res() res: Response) {
-    const photo = await this.prisma.photo.findUnique({
-      where: { id },
-      include: {
-        packedFor: { select: { merchantId: true } },
-        deliveries: { select: { order: { select: { merchantId: true } } } },
-        failedDeliveries: { select: { order: { select: { merchantId: true } } } },
-      },
-    });
-    if (!photo) throw new NotFoundException({ error: 'photo_not_found' });
-    if (user.role === 'merchant') {
-      const me = await this.prisma.user.findUnique({ where: { id: user.sub } });
-      const owners = [
-        ...photo.packedFor.map((o) => o.merchantId),
-        ...photo.deliveries.map((d) => d.order.merchantId),
-        ...photo.failedDeliveries.map((d) => d.order.merchantId),
-      ];
-      if (!me?.merchantId || !owners.includes(me.merchantId))
-        throw new NotFoundException({ error: 'photo_not_found' });
-    }
+  async get(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const photo = await this.prisma.photo.findUnique({ where: { id }, include: PHOTO_LINKS });
+    if (!photo || !(await this.mayOpen(photo, user, req as AuthedRequest)))
+      throw new NotFoundException({ error: 'photo_not_found' });
     res.setHeader('content-type', photo.contentType);
     // A PDF opens in the browser under its own name (finance attachments keep it).
     if (photo.fileName)
@@ -95,5 +117,69 @@ export class PhotosController {
       );
     res.setHeader('cache-control', 'private, max-age=86400');
     res.send(Buffer.from(photo.data));
+  }
+
+  private async mayOpen(photo: PhotoWithLinks, user: AccessTokenClaims, req: AuthedRequest) {
+    if (photo.createdById === user.sub) return true;
+    const orders = [
+      ...photo.packedFor.map((o) => ({
+        merchantId: o.merchantId,
+        darkStoreId: o.darkStoreId,
+        riderIds: o.deliveries.map((d) => d.riderId),
+      })),
+      ...[...photo.deliveries, ...photo.failedDeliveries].map((d) => ({
+        ...d.order,
+        riderIds: [d.riderId],
+      })),
+    ];
+    const proof = photo.kind === 'pack' || photo.kind === 'delivery';
+
+    if (user.role === 'merchant') {
+      if (!proof) return false;
+      const me = await this.prisma.user.findUnique({
+        where: { id: user.sub },
+        select: { merchantId: true },
+      });
+      return Boolean(me?.merchantId && orders.some((o) => o.merchantId === me.merchantId));
+    }
+    if (user.role === 'rider') {
+      const rider = await this.prisma.rider.findUnique({
+        where: { userId: user.sub },
+        select: { id: true },
+      });
+      if (!rider) return false;
+      if (proof) return orders.some((o) => o.riderIds.includes(rider.id));
+      return photo.basataDeposits.some((d) => d.riderId === rider.id);
+    }
+    if (!isTeamRole(user.role)) return false;
+
+    const access = await loadAccess(req, this.prisma);
+    if (proof)
+      return (
+        (canDo(access, 'operations', 'view') || canDo(access, 'store', 'view')) &&
+        orders.some(
+          (o) => canUseStore(access, o.darkStoreId) && canUseMerchant(access, o.merchantId),
+        )
+      );
+    if (canDo(access, 'accounting', 'view')) return true;
+    if (
+      canDo(access, 'store', 'view') &&
+      photo.pettyCash.some((p) => canUseStore(access, p.darkStoreId))
+    )
+      return true;
+    for (const c of photo.expenseClaims) {
+      if (c.userId === user.sub || c.managerDecidedById === user.sub) return true;
+      const me = await this.prisma.employee.findUnique({
+        where: { userId: user.sub },
+        select: { id: true },
+      });
+      if (
+        me &&
+        (c.managerEmployeeId === me.id ||
+          (await managerOf(this.prisma, c.employeeId)).managerId === me.id)
+      )
+        return true;
+    }
+    return false;
   }
 }

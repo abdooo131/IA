@@ -386,7 +386,8 @@
         "hr_termination_review": "{nameEn}: المخالفة {number} وصلت لمراجعة إنهاء الخدمة",
         "zone_areas_review": "مناطق الزونات محتاجة مراجعة: مناطق اتقسمت بين زونات أو زونات فضلت بحدودها المرسومة",
         "rider_frozen": "تم إيقاف {rider} ({badge}): كان معه {amountEgp} جنيه بعد موعد يوم {day}",
-        "exit_disable_waiting": "{name}: الحساب ماتقفلش في آخر يوم، لسه معاه {open} توصيلات بره. اقفلها والحساب هيتقفل في المرة الجاية."
+        "exit_disable_waiting": "{name}: الحساب ماتقفلش في آخر يوم، لسه معاه {open} توصيلات بره. اقفلها والحساب هيتقفل في المرة الجاية.",
+        "otp_locked": "الطلب {order}: {count} أكواد توصيل غلط، لازم المندوب ({rider}) يصور التسليم"
       },
       "handledBy": "اتعامل معاه {name}",
       "typeNames": {
@@ -420,7 +421,8 @@
         "hr_termination_review": "مراجعة إنهاء خدمة",
         "zone_areas_review": "مناطق الزونات للمراجعة",
         "rider_frozen": "مندوب موقوف",
-        "exit_disable_waiting": "موظف ماشي ولسه معاه توصيلات"
+        "exit_disable_waiting": "موظف ماشي ولسه معاه توصيلات",
+        "otp_locked": "كود التوصيل اتقفل"
       }
     },
     "settings": {
@@ -450,6 +452,7 @@
         "delivery__retry_hold_hours": "ساعات لاتخاذ القرار بعد محاولة فاشلة",
         "delivery__return_alert_minutes": "دقايق قبل التنبيه إن البضاعة مارجعتش",
         "delivery__min_calls_no_answer": "مكالمات قبل \"العميل مش بيرد\"",
+        "delivery__max_wrong_codes": "أكواد توصيل غلط قبل قفل الكود",
         "tracking__rider_ping_seconds": "ثواني بين تحديثات مكان المندوب",
         "tracking__rider_stale_minutes": "إخفاء مكان المندوب بعد (دقايق من غير تحديث)",
         "tracking__low_rating_stars": "تنبيه لما تقييم العميل يكون أقل من أو يساوي (نجوم)",
@@ -2008,6 +2011,7 @@
     "trip": "مشوار فيه {count} طلبات",
     "errors": {
       "wrong_otp": "الكود غلط. راجعه مع العميل.",
+      "otp_locked": "أكواد غلط كتير. صوّر التسليم بدل الكود.",
       "proof_required": "اكتب كود العميل أو صور التسليم.",
       "cod_required": "اكتب الكاش اللي حصلته.",
       "delivery_closed": "التوصيلة دي اتقفلت خلاص.",

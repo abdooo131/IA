@@ -127,6 +127,25 @@ describe('push notifications', () => {
     expect((await staff.get('/me/push')).body.devices).toEqual([]);
   });
 
+  it('refuses devices that do not point at a known push service', async () => {
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    for (const endpoint of [
+      'https://169.254.169.254/latest/meta-data',
+      'https://internal.shiplynow.local/hook',
+      'https://fcm.googleapis.com.attacker.example/x',
+    ])
+      await staff
+        .post('/me/push/subscriptions')
+        .send({ ...device('x'), endpoint })
+        .expect(400);
+    expect((await staff.get('/me/push')).body.devices).toEqual([]);
+    expect((await staff.post('/me/push/test').expect(200)).body).toEqual({
+      sent: 0,
+      failed: 0,
+      gone: 0,
+    });
+  });
+
   it('a device used by another person moves to them', async () => {
     const staff = await agent('staff.newcairo@shiplynow.local');
     const rider = await agent('rider.newcairo@shiplynow.local');

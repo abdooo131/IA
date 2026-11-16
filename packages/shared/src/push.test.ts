@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { JOB_ROLE_TEMPLATES, NO_ACCESS } from './access';
-import { egpText, PUSH_TEXT, pushText, pushTypesFor, stageWords } from './push';
+import {
+  egpText,
+  isPushServiceUrl,
+  PUSH_TEXT,
+  pushSubscriptionSchema,
+  pushText,
+  pushTypesFor,
+  stageWords,
+} from './push';
 
 describe('push notifications', () => {
   it('writes each notification in the device language', () => {
@@ -64,5 +72,38 @@ describe('push notifications', () => {
       pushTypesFor({ kind: 'merchant', merchantRole: 'member', rights: ['money', 'stock'] }),
     ).toEqual(['merchant_payout', 'merchant_low_stock']);
     expect(pushTypesFor({ kind: 'rider' })).toContain('rider_order');
+  });
+
+  it('accepts subscriptions only on the browsers push services', () => {
+    for (const ok of [
+      'https://fcm.googleapis.com/fcm/send/abc',
+      'https://updates.push.services.mozilla.com/wpush/v2/abc',
+      'https://web.push.apple.com/QGx',
+      'https://api.push.apple.com/3/device/abc',
+      'https://wns2-par02p.notify.windows.com/w/?token=abc',
+      'https://FCM.googleapis.com:443/fcm/send/abc',
+    ])
+      expect({ ok, allowed: isPushServiceUrl(ok) }).toEqual({ ok, allowed: true });
+    for (const bad of [
+      'http://fcm.googleapis.com/fcm/send/abc',
+      'https://evil.example/fcm.googleapis.com',
+      'https://fcm.googleapis.com.evil.example/x',
+      'https://push.apple.com/x',
+      'https://evilpush.apple.com.attacker.io/x',
+      'https://notify.windows.com/x',
+      'https://169.254.169.254/latest/meta-data',
+      'https://localhost/x',
+      'https://user:pass@fcm.googleapis.com/x',
+      'https://fcm.googleapis.com:8443/x',
+      'not a url',
+    ])
+      expect({ bad, allowed: isPushServiceUrl(bad) }).toEqual({ bad, allowed: false });
+    const keys = { p256dh: 'BNcRdreALRFXTkOO', auth: 'tBHItJI5svbpez7K' };
+    expect(
+      pushSubscriptionSchema.safeParse({ endpoint: 'https://fcm.googleapis.com/x', keys }).success,
+    ).toBe(true);
+    expect(
+      pushSubscriptionSchema.safeParse({ endpoint: 'https://internal.example/x', keys }).success,
+    ).toBe(false);
   });
 });

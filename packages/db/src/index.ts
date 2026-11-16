@@ -234,6 +234,7 @@ export * from './packaging';
 export * from './purchasing';
 export * from './crm';
 export * from './crm-proposals';
+export * from './setup-tokens';
 export * from './crm-sales';
 export {
   adjustLeaveBalance,

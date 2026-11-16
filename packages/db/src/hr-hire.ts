@@ -735,16 +735,23 @@ export function issueEmployeeSetupLink(
   return inTransaction(db, async (tx) => {
     const e = await tx.employee.findUnique({
       where: { id: input.employeeId },
-      include: { user: true },
+      include: { user: true, _count: { select: { exits: { where: { cancelledAt: null } } } } },
     });
     if (!e) throw new DomainError('employee_not_found', 404);
     if (input.scope !== null && !(e.homeStoreId && input.scope.includes(e.homeStoreId)))
       throw new DomainError('store_not_allowed', 403);
-    if (e.status === 'left') throw new DomainError('employee_left', 409);
+    // A leaver (or one whose leaving is recorded) never gets a link that would open the account.
+    if (e.status === 'left' || e._count.exits > 0) throw new DomainError('employee_left', 409);
     if (isNoLoginEmail(e.user.email)) throw new DomainError('no_login', 409);
     if (e.user.isActive) throw new DomainError('login_already_active', 409);
     const made = await tx.userSetupToken.count({ where: { userId: e.userId } });
     if (made === 0) throw new DomainError('login_not_pending', 409);
+    // Only while the person never chose a password: a used link means the account was opened
+    // once and later closed, and only an admin may open it again (Users).
+    const used = await tx.userSetupToken.count({
+      where: { userId: e.userId, usedAt: { not: null } },
+    });
+    if (used > 0) throw new DomainError('login_already_active', 409);
     const token = await issueSetupToken(
       tx,
       e.userId,
@@ -772,7 +779,12 @@ export async function loginStateOf(db: Db, userId: string) {
   if (!u) return 'none' as const;
   if (isNoLoginEmail(u.email)) return 'none' as const;
   if (u.isActive) return 'active' as const;
-  const pending = await db.userSetupToken.count({ where: { userId, usedAt: null } });
-  if (pending > 0 && (isTeamRole(u.role) || u.role === 'rider')) return 'pending' as const;
+  const [pending, used] = await Promise.all([
+    db.userSetupToken.count({ where: { userId, usedAt: null } }),
+    db.userSetupToken.count({ where: { userId, usedAt: { not: null } } }),
+  ]);
+  // A password chosen once and the account closed later is disabled, never pending again.
+  if (pending > 0 && used === 0 && (isTeamRole(u.role) || u.role === 'rider'))
+    return 'pending' as const;
   return 'disabled' as const;
 }

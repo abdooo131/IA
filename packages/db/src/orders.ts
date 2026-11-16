@@ -773,8 +773,45 @@ export interface CompleteDeliveryInput {
  * The customer has the goods: proved by their code or a photo. COD differences raise an alert.
  * The rider's position is kept on the delivery and teaches the address (docs/ZONES.md §5).
  */
-export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
-  return inTransaction(db, (tx) => completeInTx(tx, input, null));
+export async function completeDelivery(db: Db, input: CompleteDeliveryInput) {
+  try {
+    return await inTransaction(db, (tx) => completeInTx(tx, input, null));
+  } catch (error) {
+    // The refusal rolled the attempt back; the wrong code is counted on its own afterwards.
+    if (error instanceof DomainError && error.code === 'wrong_otp')
+      await countWrongCode(db, input.deliveryId);
+    throw error;
+  }
+}
+
+/**
+ * One more wrong delivery code on a delivery still with its rider. Reaching
+ * delivery.max_wrong_codes locks the code (otp_locked: the rider proves the handover with a
+ * photo) and raises one otp_locked admin alert.
+ */
+async function countWrongCode(db: Db, deliveryId: string) {
+  await inTransaction(db, async (tx) => {
+    const rows = await tx.$queryRaw<{ otp_failures: number }[]>`
+      UPDATE deliveries SET otp_failures = otp_failures + 1
+      WHERE id = ${deliveryId} AND status = 'picked_up'
+      RETURNING otp_failures`;
+    const failures = rows[0]?.otp_failures;
+    if (failures === undefined) return;
+    const d = await tx.delivery.findUniqueOrThrow({
+      where: { id: deliveryId },
+      include: { order: true, rider: { include: { user: { select: { name: true } } } } },
+    });
+    const max = await getSetting(tx, 'delivery.max_wrong_codes');
+    if (failures !== max) return;
+    await tx.alert.create({
+      data: {
+        type: 'otp_locked',
+        darkStoreId: d.order.darkStoreId,
+        orderId: d.orderId,
+        data: { order: d.order.number, rider: d.rider.user.name, count: failures },
+      },
+    });
+  });
 }
 
 async function completeInTx(
@@ -788,6 +825,13 @@ async function completeInTx(
   // The rider proves the hand over with the customer's code or a photo; a manager closing
   // it for the rider gives a reason instead (the photo stays optional).
   if (!forRider && !input.otp && !input.photoId) throw new DomainError('proof_required', 400);
+  // Too many wrong codes: guessing stops; the handover photo still proves it.
+  if (
+    !forRider &&
+    input.otp !== undefined &&
+    delivery.otpFailures >= (await getSetting(tx, 'delivery.max_wrong_codes'))
+  )
+    throw new DomainError('otp_locked', 400);
   const otpOk = !forRider && input.otp !== undefined && input.otp === order.deliveryOtp;
   if (!forRider && input.otp !== undefined && !otpOk) throw new DomainError('wrong_otp', 400);
   if (input.photoId) {

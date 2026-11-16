@@ -243,7 +243,24 @@ export const closeForRiderSchema = z
   );
 export type CloseForRiderBody = z.infer<typeof closeForRiderSchema>;
 
-/** A 4 digit code the customer gives the rider. */
-export function newDeliveryOtp(random: () => number = Math.random): string {
-  return String(Math.floor(random() * 10_000)).padStart(4, '0');
+/**
+ * A uniform random integer in [0, max) from the platform's cryptographic generator (Web Crypto,
+ * which Node and browsers both have; node:crypto's randomInt would not bundle for the web).
+ */
+export function secureRandomInt(max: number): number {
+  const crypto = (globalThis as { crypto?: { getRandomValues(a: Uint32Array): Uint32Array } })
+    .crypto;
+  if (!crypto) throw new Error('no secure random generator');
+  // Rejection sampling keeps every value equally likely.
+  const limit = Math.floor(0x1_0000_0000 / max) * max;
+  const buf = new Uint32Array(1);
+  for (;;) {
+    crypto.getRandomValues(buf);
+    if (buf[0]! < limit) return buf[0]! % max;
+  }
+}
+
+/** A 4 digit code the customer gives the rider, from a cryptographic generator. */
+export function newDeliveryOtp(randomInt: (max: number) => number = secureRandomInt): string {
+  return String(randomInt(10_000)).padStart(4, '0');
 }

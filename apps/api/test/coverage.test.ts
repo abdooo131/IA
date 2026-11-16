@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { LoginThrottleService } from '../src/auth/login-throttle.service';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
 import { assignArea, cleanUpAreas, forgetAreaNames, loadBaseAreas } from '@shiplynow/db';
 import type { PrismaService } from '../src/prisma/prisma.service';
@@ -52,6 +53,9 @@ describe('coverage', () => {
   });
 
   beforeEach(async () => {
+    (
+      app.get(LoginThrottleService) as unknown as { failures: Map<string, number[]> }
+    ).failures.clear();
     forgetAreaNames();
     clock.set(NOON_CAIRO);
     ({ stores } = await resetAndSeed(prisma));
@@ -62,8 +66,12 @@ describe('coverage', () => {
     adminCookie = login.headers['set-cookie'] as unknown as string[];
   });
 
+  /** Signed in (the order forms): the paid lookup may answer. */
   const check = (query: Record<string, string | number>) =>
-    request(app.getHttpServer()).get('/coverage').query(query);
+    request(app.getHttpServer()).get('/coverage').set('Cookie', adminCookie).query(query);
+  /** A visitor who is not signed in. */
+  const anon = (query: Record<string, string | number>, from = '203.0.113.7') =>
+    request(app.getHttpServer()).get('/coverage').set('x-forwarded-for', from).query(query);
 
   async function placeOrder(storeCode: string) {
     const merchant = await prisma.merchant.findFirstOrThrow();
@@ -155,6 +163,29 @@ describe('coverage', () => {
     const picked = await check({ areaId: newCairo.id }).expect(200);
     expect(picked.body).toMatchObject({ covered: true, darkStore: { code: 'NCR' } });
     expect(geocoder.calls).toBe(3);
+  });
+
+  it('never asks the paid lookup for visitors, and limits them per address', async () => {
+    geocoder.calls = 0;
+    const res = await anon({ address: 'South 90th Street' }).expect(200);
+    expect(res.body).toMatchObject({ covered: false, reason: 'address_unsure' });
+    expect(geocoder.calls).toBe(0);
+    // A forged or expired token counts as a visitor too.
+    await request(app.getHttpServer())
+      .get('/coverage')
+      .set('Authorization', 'Bearer not-a-token')
+      .set('x-forwarded-for', '203.0.113.8')
+      .query({ address: 'South 90th Street' })
+      .expect(200);
+    expect(geocoder.calls).toBe(0);
+    // Points still work for visitors, up to 60 checks per address in 15 minutes.
+    for (let i = 1; i < 60; i++) await anon(NEW_CAIRO).expect(200);
+    const refused = await anon(NEW_CAIRO).expect(429);
+    expect(refused.body.error).toBe('too_many_attempts');
+    await anon(NEW_CAIRO, '203.0.113.9').expect(200);
+    // Signed in people are not limited and keep the lookup.
+    await check({ address: 'South 90th Street' }).expect(200);
+    expect(geocoder.calls).toBe(1);
   });
 
   it('reports a closed store with its next opening time', async () => {

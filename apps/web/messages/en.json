@@ -386,7 +386,8 @@
         "hr_termination_review": "{nameEn}: {number} reached termination review",
         "zone_areas_review": "Zone areas to review: some areas were split between zones or some zones kept their drawn outline",
         "rider_frozen": "{rider} ({badge}) frozen: held {amountEgp} EGP after the deadline of {day}",
-        "exit_disable_waiting": "{name}: account not closed on the last day, still has {open} deliveries out. Close them, then the account closes on the next run."
+        "exit_disable_waiting": "{name}: account not closed on the last day, still has {open} deliveries out. Close them, then the account closes on the next run.",
+        "otp_locked": "Order {order}: {count} wrong delivery codes, the rider ({rider}) must use a handover photo"
       },
       "handledBy": "Handled by {name}",
       "typeNames": {
@@ -420,7 +421,8 @@
         "hr_termination_review": "Termination review",
         "zone_areas_review": "Zone areas to review",
         "rider_frozen": "Rider frozen",
-        "exit_disable_waiting": "Leaver still has deliveries"
+        "exit_disable_waiting": "Leaver still has deliveries",
+        "otp_locked": "Delivery code locked"
       }
     },
     "settings": {
@@ -450,6 +452,7 @@
         "delivery__retry_hold_hours": "Hours to decide after a failed attempt",
         "delivery__return_alert_minutes": "Minutes before alerting that goods are not back",
         "delivery__min_calls_no_answer": "Calls before \"customer not answering\"",
+        "delivery__max_wrong_codes": "Wrong delivery codes before the code is locked",
         "tracking__rider_ping_seconds": "Seconds between rider position updates",
         "tracking__rider_stale_minutes": "Hide rider position after (minutes without update)",
         "tracking__low_rating_stars": "Alert on customer ratings at or below (stars)",
@@ -2008,6 +2011,7 @@
     "trip": "Trip with {count} orders",
     "errors": {
       "wrong_otp": "That code is wrong. Check it with the customer.",
+      "otp_locked": "Too many wrong codes. Take a handover photo instead.",
       "proof_required": "Enter the customer code or take a photo.",
       "cod_required": "Enter the cash you collected.",
       "delivery_closed": "This delivery is already closed.",

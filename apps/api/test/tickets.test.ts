@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { JobsService } from '../src/jobs/jobs.service';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { Slack, type SlackPost } from '../src/tickets/slack';
-import { createTestApp, resetAndSeed } from './helpers';
+import { createTestApp, createUser, grantAccess, resetAndSeed } from './helpers';
 
 const SECRET = process.env.SLACK_SIGNING_SECRET ?? '';
 
@@ -192,5 +192,35 @@ describe('tickets and Slack', () => {
       .post('/tickets')
       .send({ title: 'x', body: 'y', assigneeId: 'nobody' })
       .expect(400);
+  });
+
+  it('shows every ticket only to people with admin powers, not to every admin account', async () => {
+    slack.enabled = false;
+    const finance = await agent('finance@shiplynow.local');
+    const staff = await prisma.user.findUniqueOrThrow({
+      where: { email: 'staff.newcairo@shiplynow.local' },
+    });
+    const created = await finance
+      .post('/tickets')
+      .send({ title: 'Cash short', body: 'Rider RDR-1 is 50 short', assigneeId: staff.id })
+      .expect(201);
+    // An HR officer signs in with the JWT role admin but has no settings manage.
+    const hr = await createUser(prisma, {
+      email: 'hr@test.eg',
+      password: 'demo-password-1',
+      role: 'admin',
+    });
+    await grantAccess(prisma, hr.id, 'hr_officer');
+    const hrAgent = await agent('hr@test.eg');
+    const refused = await hrAgent.get(`/tickets/${created.body.id}`).expect(404);
+    expect(refused.body.error).toBe('ticket_not_found');
+    await hrAgent.post(`/tickets/${created.body.id}/messages`).send({ body: 'hi' }).expect(404);
+    await hrAgent.post(`/tickets/${created.body.id}/close`).expect(404);
+    expect((await hrAgent.get('/tickets?box=all').expect(200)).body.rows).toEqual([]);
+    // The owner (settings manage) reads every ticket.
+    const boss = await agent('admin@test.eg', 'admin-password-1');
+    await boss.get(`/tickets/${created.body.id}`).expect(200);
+    const all = (await boss.get('/tickets?box=all').expect(200)).body.rows;
+    expect(all.map((r: { id: string }) => r.id)).toEqual([created.body.id]);
   });
 });

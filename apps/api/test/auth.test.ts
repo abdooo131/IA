@@ -146,6 +146,19 @@ describe('auth', () => {
       expect(res.body.user.role).toBe('rider');
     });
 
+    it('refuses a disabled user at once, before the access token runs out', async () => {
+      const { body } = await login(RIDER.email, RIDER.password).expect(200);
+      const bearer = { Authorization: `Bearer ${body.accessToken}` };
+      await request(app.getHttpServer()).get('/auth/me').set(bearer).expect(200);
+      await prisma.user.update({ where: { email: RIDER.email }, data: { isActive: false } });
+      const refused = await request(app.getHttpServer()).get('/auth/me').set(bearer).expect(401);
+      expect(refused.body.error).toBe('unauthenticated');
+      await request(app.getHttpServer()).get('/rider/deliveries').set(bearer).expect(401);
+      // Opened again, the same token works.
+      await prisma.user.update({ where: { email: RIDER.email }, data: { isActive: true } });
+      await request(app.getHttpServer()).get('/auth/me').set(bearer).expect(200);
+    });
+
     it('rejects a tampered token', async () => {
       const { body } = await login(RIDER.email, RIDER.password).expect(200);
       const [header, payload, signature] = (body.accessToken as string).split('.');

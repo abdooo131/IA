@@ -24,6 +24,7 @@ export {
 } from './customers';
 export {
   customerProfile,
+  customersOfMerchants,
   customersOverview,
   districtDemand,
   exportCustomers,

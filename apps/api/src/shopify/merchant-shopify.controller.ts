@@ -103,7 +103,13 @@ export class MerchantShopifyController {
       where: { clientId: body.clientId },
       include: { shops: { select: { merchantId: true } } },
     });
-    if (existing?.shops.some((s) => s.merchantId !== merchant.id))
+    // An app row we hold already is this merchant's only when they saved it: an app admin
+    // added or another merchant saved (even one with no store yet) is never taken over.
+    if (
+      existing &&
+      (existing.merchantId !== merchant.id ||
+        existing.shops.some((s) => s.merchantId !== merchant.id))
+    )
       throw new DomainError('app_used_by_other_merchant');
     const app = await this.prisma.$transaction(async (tx) => {
       const sealed = sealToken(body.clientSecret, this.shopify.secret);
@@ -113,7 +119,12 @@ export class MerchantShopifyController {
             data: { clientSecretEnc: sealed },
           })
         : await tx.shopifyApp.create({
-            data: { name: merchant.name, clientId: body.clientId, clientSecretEnc: sealed },
+            data: {
+              name: merchant.name,
+              clientId: body.clientId,
+              clientSecretEnc: sealed,
+              merchantId: merchant.id,
+            },
           });
       await recordAudit(tx, {
         actorUserId: user.sub,
