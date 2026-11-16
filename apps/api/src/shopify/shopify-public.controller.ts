@@ -15,6 +15,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { redactShopCustomer, redactShopCustomers } from '@shiplynow/db';
 import { Public } from '../auth/decorators';
+import { clientAddress, LoginThrottleService } from '../auth/login-throttle.service';
 import { isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
 import { ShopDataService } from './shop-data.service';
 import { ShopifyAdmin } from './shopify-admin';
@@ -43,6 +44,7 @@ export class ShopifyPublicController {
     private readonly sync: ShopifySyncService,
     private readonly rates: ShopifyRatesService,
     private readonly shopData: ShopDataService,
+    private readonly throttle: LoginThrottleService,
   ) {}
 
   private get prisma() {
@@ -91,7 +93,10 @@ export class ShopifyPublicController {
 
   /** Starts installation for a shop that admin linked to a merchant. */
   @Get('install')
-  async install(@Query('shop') shop: string, @Res() res: Response) {
+  async install(@Query('shop') shop: string, @Req() req: Request, @Res() res: Response) {
+    this.throttle.shopifyInstall(
+      clientAddress(req.headers['x-forwarded-for'], req.socket.remoteAddress),
+    );
     if (!this.shopify.configured) return this.done(res, { error: 'not_configured' });
     if (!isShopDomain(shop)) return this.done(res, { error: 'invalid_shop' });
     const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
@@ -320,6 +325,7 @@ export class ShopifyPublicController {
     @Headers('x-shopify-hmac-sha256') hmac?: string,
     @Headers('x-shopify-topic') topic?: string,
     @Headers('x-shopify-shop-domain') shopDomain?: string,
+    @Headers('x-shopify-triggered-at') triggeredAt?: string,
   ) {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
     const shop = shopDomain
@@ -328,6 +334,23 @@ export class ShopifyPublicController {
     if (!(await this.signed(shop, (secret) => verifyBodyHmac(raw, hmac, secret))))
       return res.status(401).send();
     if (topic === 'app/uninstalled' && shop) {
+      // Shopify retries a failed delivery for hours: an uninstall that happened before the
+      // store connected again (a late or replayed delivery) must not cut off the new access.
+      const happened = triggeredAt ? new Date(triggeredAt) : null;
+      if (
+        happened &&
+        !Number.isNaN(happened.getTime()) &&
+        shop.installedAt &&
+        happened < shop.installedAt
+      ) {
+        await this.shopify.record(shop.id, {
+          direction: 'in',
+          kind: 'webhook:app/uninstalled',
+          ok: true,
+          message: `ignored: uninstalled at ${happened.toISOString()}, before the reconnect`,
+        });
+        return res.status(200).send();
+      }
       await this.prisma.shopifyShop.update({
         where: { id: shop.id },
         data: {
@@ -392,21 +415,30 @@ export class ShopifyPublicController {
       }
       return res.status(200).send();
     }
-    // Privacy requests: customers/redact and shop/redact delete the buyer details we keep
-    // (order totals stay for the sales figures); customers/data_request is logged for the team
-    // to answer from the customer's profile.
+    // Privacy requests: customer data is never deleted from our side (owner, 2026-11-16).
+    // customers/redact and shop/redact hide the buyer from every merchant view and keep the
+    // record for the company; they find the store's rows by its domain, so they still apply
+    // after a disconnect or a move to another store. customers/data_request is logged for the
+    // team to answer from the customer's profile.
     let message: string | undefined;
-    if (shop && (topic === 'customers/redact' || topic === 'shop/redact')) {
-      const body = JSON.parse(raw.toString('utf8')) as {
-        customer?: { id?: number | string };
-        orders_to_redact?: (number | string)[];
+    if (shopDomain && (topic === 'customers/redact' || topic === 'shop/redact')) {
+      let body: { customer?: { id?: number | string }; orders_to_redact?: (number | string)[] };
+      try {
+        body = JSON.parse(raw.toString('utf8')) as typeof body;
+      } catch {
+        return res.status(400).json({ error: 'invalid_body' });
+      }
+      const store = {
+        shopDomain,
+        shopId: shop?.id ?? null,
+        merchantId: shop?.merchantId ?? null,
       };
       const result =
         topic === 'shop/redact'
-          ? await redactShopCustomers(this.prisma, shop.id)
+          ? await redactShopCustomers(this.prisma, store)
           : await redactShopCustomer(
               this.prisma,
-              shop.id,
+              store,
               body.customer?.id ? `gid://shopify/Customer/${body.customer.id}` : null,
               (body.orders_to_redact ?? []).map((id) => `gid://shopify/Order/${id}`),
             );

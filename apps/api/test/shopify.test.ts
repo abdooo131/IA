@@ -105,6 +105,8 @@ describe('shopify app', () => {
     await app.close();
   });
 
+  let installs = 0;
+
   /** Links the demo merchant, runs the OAuth install and waits for the background setup. */
   async function install() {
     const admin = await agent('admin@test.eg', 'admin-password-1');
@@ -113,7 +115,11 @@ describe('shopify app', () => {
       .send({ merchantId, shopDomain: 'shiplynow-test' })
       .expect(201);
     const browser = request.agent(app.getHttpServer());
-    const start = await browser.get(`/shopify/install?shop=${SHOP}`).expect(302);
+    // Each install from its own address: the install link is limited per address.
+    const start = await browser
+      .get(`/shopify/install?shop=${SHOP}`)
+      .set('x-forwarded-for', `10.20.${++installs}.1`)
+      .expect(302);
     const authorize = new URL(start.headers.location!);
     expect(authorize.host).toBe(SHOP);
     expect(authorize.searchParams.get('client_id')).toBe('test-client-id');
@@ -616,6 +622,34 @@ describe('shopify app', () => {
     await admin.post(`/admin/shopify/${shop.id}/carrier-service`).expect(201);
     expect(fake.services).toHaveLength(3);
     expect(fake.carrierServices).toHaveLength(1);
+    // Buyer data collected from the store: never deleted by a disconnect.
+    const person = await prisma.customer.create({
+      data: { phone: '+201001234567', firstSeenAt: new Date(), lastSeenAt: new Date() },
+    });
+    await prisma.shopCustomer.create({
+      data: {
+        shopId: shop.id,
+        merchantId,
+        shopDomain: SHOP,
+        shopifyId: 'gid://shopify/Customer/9001',
+        customerId: person.id,
+        raw: {},
+      },
+    });
+    await prisma.shopOrder.create({
+      data: {
+        shopId: shop.id,
+        merchantId,
+        shopDomain: SHOP,
+        shopifyId: 'gid://shopify/Order/9001',
+        name: '#9001',
+        createdAtShop: new Date(),
+        currency: 'EGP',
+        customerId: person.id,
+        customerShopifyId: 'gid://shopify/Customer/9001',
+        raw: {},
+      },
+    });
 
     const res = await admin.post(`/admin/shopify/${shop.id}/disconnect`).expect(201);
     expect(res.body).toEqual({ disconnected: true, notRemovedInShopify: 0 });
@@ -628,6 +662,22 @@ describe('shopify app', () => {
     );
     expect(await prisma.auditLog.count({ where: { action: 'shopify.disconnect' } })).toBe(1);
     await admin.post(`/admin/shopify/${shop.id}/disconnect`).expect(404);
+    expect(await prisma.customer.count()).toBe(1);
+    expect(await prisma.shopCustomer.count()).toBe(1);
+    expect(await prisma.shopOrder.count()).toBe(1);
+    // Shopify's shop/redact after the removal still finds the store's buyers by its domain.
+    const body = JSON.stringify({ shop_domain: SHOP });
+    await request(app.getHttpServer())
+      .post('/shopify/webhooks')
+      .set('content-type', 'application/json')
+      .set('x-shopify-topic', 'shop/redact')
+      .set('x-shopify-shop-domain', SHOP)
+      .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(body).digest('base64'))
+      .send(body)
+      .expect(200);
+    expect(await prisma.shopCustomer.count({ where: { redactedAt: { not: null } } })).toBe(1);
+    expect(await prisma.shopOrder.count({ where: { redactedAt: { not: null } } })).toBe(1);
+    expect(await prisma.customer.count()).toBe(1);
 
     // The merchant can now be linked to another store.
     await admin
@@ -896,22 +946,30 @@ describe('shopify app', () => {
     await staff.get(`/admin/customers/${found.customers[0].id}`).expect(403);
     await admin.get('/admin/customers/nobody').expect(404);
 
-    // Shopify's customers/redact forgets the buyer: record, order contact details and person.
+    // Shopify's customers/redact: customer data is never deleted from our side. The buyer is
+    // hidden from the merchant and kept for the company, which sees the mark on the profile.
     const redact = JSON.stringify({ customer: { id: 501 }, orders_to_redact: [7001] });
-    await request(app.getHttpServer())
-      .post('/shopify/webhooks')
-      .set('content-type', 'application/json')
-      .set('x-shopify-topic', 'customers/redact')
-      .set('x-shopify-shop-domain', SHOP)
-      .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(redact).digest('base64'))
-      .send(redact)
-      .expect(200);
-    expect(await prisma.shopCustomer.count()).toBe(0);
-    expect(await prisma.customer.count()).toBe(0);
+    const sendRedact = () =>
+      request(app.getHttpServer())
+        .post('/shopify/webhooks')
+        .set('content-type', 'application/json')
+        .set('x-shopify-topic', 'customers/redact')
+        .set('x-shopify-shop-domain', SHOP)
+        .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(redact).digest('base64'))
+        .send(redact)
+        .expect(200);
+    await sendRedact();
+    expect(await prisma.shopCustomer.count({ where: { redactedAt: { not: null } } })).toBe(1);
+    expect(await prisma.customer.count()).toBe(1);
     const kept = await prisma.shopOrder.findUniqueOrThrow({ where: { shopifyId: O } });
-    expect(kept).toMatchObject({ customerId: null, totalPiastres: 70100, province: 'Cairo' });
-    expect(kept.raw).not.toHaveProperty('email');
-    expect(kept.raw).not.toHaveProperty('shippingAddress');
+    expect(kept.customerId).toBe(found.customers[0].id);
+    expect(kept.redactedAt).not.toBeNull();
+    expect(kept.raw).toHaveProperty('shippingAddress');
+    const hidden = (await admin.get(`/admin/customers/${found.customers[0].id}`).expect(200)).body;
+    expect(hidden.shopRecords[0]).toMatchObject({ hiddenFromMerchant: true });
+    expect(hidden.recentOrders[0]).toMatchObject({ hiddenFromMerchant: true });
+    await sendRedact();
+    expect(await prisma.auditLog.count({ where: { action: 'customer.redact' } })).toBe(1);
   });
 
   it('shows missing permissions, retries customers after a reconnect and takes customer webhooks', async () => {
@@ -1433,16 +1491,44 @@ describe('shopify app', () => {
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });
-    await request(app.getHttpServer())
-      .post('/shopify/webhooks')
-      .set('content-type', 'application/json')
-      .set('x-shopify-topic', 'app/uninstalled')
-      .set('x-shopify-shop-domain', SHOP)
-      .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(body).digest('base64'))
-      .send(body)
-      .expect(200);
+    const uninstalled = (triggeredAt: Date) =>
+      request(app.getHttpServer())
+        .post('/shopify/webhooks')
+        .set('content-type', 'application/json')
+        .set('x-shopify-topic', 'app/uninstalled')
+        .set('x-shopify-shop-domain', SHOP)
+        .set('x-shopify-triggered-at', triggeredAt.toISOString())
+        .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(body).digest('base64'))
+        .send(body)
+        .expect(200);
+    // A late delivery of an uninstall from before the store connected again changes nothing.
+    const before = await prisma.shopifyShop.findUniqueOrThrow({ where: { shopDomain: SHOP } });
+    await uninstalled(new Date(before.installedAt!.getTime() - 60_000));
+    expect(
+      await prisma.shopifyShop.findUniqueOrThrow({ where: { shopDomain: SHOP } }),
+    ).toMatchObject({ status: 'active', accessTokenEnc: before.accessTokenEnc });
+    await uninstalled(new Date(before.installedAt!.getTime() + 60_000));
     const shop = await prisma.shopifyShop.findUniqueOrThrow({ where: { shopDomain: SHOP } });
     expect(shop).toMatchObject({ status: 'uninstalled', accessTokenEnc: null });
+  });
+
+  it('limits the public install link per address', async () => {
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test' })
+      .expect(201);
+    const open = () =>
+      request(app.getHttpServer())
+        .get(`/shopify/install?shop=${SHOP}`)
+        .set('x-forwarded-for', '203.0.113.77');
+    for (let i = 0; i < 20; i++) await open().expect(302);
+    expect((await open().expect(429)).body).toMatchObject({ error: 'too_many_attempts' });
+    // Another address is not affected.
+    await request(app.getHttpServer())
+      .get(`/shopify/install?shop=${SHOP}`)
+      .set('x-forwarded-for', '203.0.113.78')
+      .expect(302);
   });
 
   it('links, adds and reprices products from the signed product webhooks', async () => {

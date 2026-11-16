@@ -46,7 +46,11 @@ export function OrdersTable({
                 <p className="text-caption text-text-muted">{t('units', { count: o.units })}</p>
               </td>
               <td className="px-3 py-2">
-                {o.customerName}
+                {o.buyerHidden && !o.customerName ? (
+                  <span className="text-text-muted">{t('buyerHidden')}</span>
+                ) : (
+                  o.customerName
+                )}
                 <p className="ltr-iso text-caption text-text-muted">
                   {o.phoneFlagged && '⚠ '}
                   {o.customerPhone}

@@ -78,6 +78,14 @@ export class LoginThrottleService {
     this.perAddress('coverage', address, 60);
   }
 
+  /**
+   * Shopify install links (GET /shopify/install): at most 20 per address in the window, so the
+   * public link cannot be looped to rerun a store's whole setup against its API budget.
+   */
+  shopifyInstall(address: string | null) {
+    this.perAddress('shopify_install', address, 20);
+  }
+
   private perAddress(kind: string, address: string | null, limit = 5) {
     const key = `${kind}:${address ?? 'unknown'}`;
     const list = this.recent(key);

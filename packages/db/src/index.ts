@@ -53,6 +53,7 @@ export {
 } from './orders';
 export { MAX_PHOTO_BYTES, savePhoto } from './photos';
 export {
+  forMerchant,
   getOrderDetail,
   listOrders,
   type OrderDetail,

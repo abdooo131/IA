@@ -214,7 +214,16 @@ function ConsigneeCard({ props }: { props: OrderScreenProps }) {
     >
       <dl>
         <Row label={t('consignee.name')} strong>
-          {order.customerName}
+          {order.buyerHidden && !order.customerName ? (
+            <span className="text-text-muted">{t('consignee.buyerHidden')}</span>
+          ) : (
+            order.customerName
+          )}
+          {order.buyerHidden && order.customerName && (
+            <span className="block text-caption text-text-muted">
+              {t('consignee.hiddenFromMerchant')}
+            </span>
+          )}
         </Row>
         <Row label={t('consignee.phone')}>
           {viewer === 'admin' ? (
