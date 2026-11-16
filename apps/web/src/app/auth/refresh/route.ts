@@ -24,13 +24,18 @@ export async function GET(request: NextRequest) {
   // A refused renewal on the public home page shows the website rather than the sign in page.
   // Only when the API answered: it clears the cookies then, so the home page cannot loop back here.
   const toSite = upstream !== null && !upstream.ok && next === '/';
-  const target = new URL(upstream?.ok || toSite ? next : '/login', request.url);
+  // Resolved against a placeholder only to build the path and query: behind Render request.url
+  // carries the internal address (0.0.0.0:10000), so the answer uses a relative Location.
+  const target = new URL(upstream?.ok || toSite ? next : '/login', 'http://placeholder');
   if (!upstream?.ok && !toSite && next !== '/login') target.searchParams.set('next', next);
   // The API could not be reached, so the cookies stay: tell the sign in page not to send the
   // visitor straight back here.
   if (!upstream && refreshToken) target.searchParams.set('renew', 'failed');
 
-  const response = NextResponse.redirect(target);
+  const response = new NextResponse(null, {
+    status: 307,
+    headers: { location: `${target.pathname}${target.search}` },
+  });
   // Pass the new (or cleared) cookies from the API through to the browser.
   for (const cookie of upstream?.headers.getSetCookie() ?? []) {
     response.headers.append('set-cookie', cookie);
