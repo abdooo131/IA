@@ -70,6 +70,14 @@ export class LoginThrottleService {
     this.perAddress('public_link', address, 20);
   }
 
+  /**
+   * Coverage checks by visitors who are not signed in (GET /coverage): at most 60 per address
+   * in the window, so the public route cannot be used to run address matching in bulk.
+   */
+  publicCoverage(address: string | null) {
+    this.perAddress('coverage', address, 60);
+  }
+
   private perAddress(kind: string, address: string | null, limit = 5) {
     const key = `${kind}:${address ?? 'unknown'}`;
     const list = this.recent(key);

@@ -30,14 +30,18 @@ export class CoverageService {
     private readonly status: StoreStatusService,
   ) {}
 
-  /** Coverage of a pin, a chosen area or an address text, through the one delivery decision. */
-  async check(query: CoverageQuery): Promise<CoverageResult> {
+  /**
+   * Coverage of a pin, a chosen area or an address text, through the one delivery decision.
+   * lookup false never calls the paid address lookup (Google), only our own area engine.
+   */
+  async check(query: CoverageQuery, options: { lookup?: boolean } = {}): Promise<CoverageResult> {
     const decision = await this.resolver.resolve(
       'lat' in query
         ? { point: { latitude: query.lat, longitude: query.lng, source: 'pin' } }
         : 'areaId' in query
           ? { areaId: query.areaId }
           : { addressText: query.address },
+      options,
     );
     return this.fromDecision(decision);
   }

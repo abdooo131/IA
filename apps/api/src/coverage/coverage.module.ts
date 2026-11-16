@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { ConfigService } from '@nestjs/config';
 import { Clock, SystemClock } from '../common/clock';
 import type { Env } from '../config/env';
@@ -11,6 +12,7 @@ import { Geocoder, GoogleGeocoder, NotConfiguredGeocoder, OsmGeocoder } from './
 import { StoreStatusService } from './store-status.service';
 
 @Module({
+  imports: [AuthModule],
   controllers: [CoverageController, AdminGeoController],
   providers: [
     CoverageService,
