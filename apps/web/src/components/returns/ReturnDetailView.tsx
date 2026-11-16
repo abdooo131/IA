@@ -9,16 +9,20 @@ import { apiSend } from '@/lib/api-client';
 import { formatCairoDateTime } from '@/lib/format';
 import type { ReturnDetail } from '@/lib/return-types';
 import { title } from '@/lib/store-types';
+import { CloseShortPanel } from './CloseShortPanel';
 import { ReturnStatusChip } from './ReturnStatusChip';
 
 /** A return as the merchant or admin sees it, with cancel while nothing is picked. */
 export function ReturnDetailView({
   detail,
   cancelPath,
+  closeShortPath,
   framed = false,
 }: {
   detail: ReturnDetail;
   cancelPath: string;
+  /** Inventory managers close a return short when units cannot be found */
+  closeShortPath?: string;
   /** Inside a document frame (admin): the frame shows the number and status bar */
   framed?: boolean;
 }) {
@@ -98,6 +102,11 @@ export function ReturnDetailView({
               <span className="ltr-iso block text-body-sm font-bold">{l.sku}</span>
               <span className="block truncate text-body-sm">{title(l, locale)}</span>
               <span className="block text-caption text-text-muted">{t(`sources.${l.source}`)}</span>
+              {l.shortQty > 0 && (
+                <span className="block text-caption text-danger">
+                  {t('shortUnits', { count: l.shortQty })}
+                </span>
+              )}
             </span>
             <span className="ltr-iso shrink-0 text-h3">
               {l.pickedQty}/{l.quantity}
@@ -110,6 +119,9 @@ export function ReturnDetailView({
         <p role="alert" className="text-body-sm text-danger">
           {t('errors.return_not_cancellable')}
         </p>
+      )}
+      {closeShortPath && detail.status === 'picking' && (
+        <CloseShortPanel path={closeShortPath} onDone={() => router.refresh()} />
       )}
       {detail.status === 'requested' && (
         <button

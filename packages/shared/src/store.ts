@@ -75,6 +75,9 @@ export const returnHandOverSchema = z.object({
 
 export const cancelReturnSchema = z.object({ reason: z.string().trim().max(300).optional() });
 
+/** Closing a return short: why the units not picked could not be found */
+export const closeReturnShortSchema = z.object({ reason: z.string().trim().min(5).max(300) });
+
 export const DAMAGE_CAUSES = [
   'arrived_damaged',
   'store_handling',

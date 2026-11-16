@@ -1071,3 +1071,124 @@ describe('operations fixes', () => {
     );
   });
 });
+
+describe('review step 2: intake keys and proof photos', () => {
+  it('answers a repeated manual order key with the first order and reserves once', async () => {
+    const first = await order([{ skuId: f.sku.id, quantity: 2 }], { idempotencyKey: 'm1:form-1' });
+    const again = await order([{ skuId: f.sku.id, quantity: 2 }], { idempotencyKey: 'm1:form-1' });
+    expect(again).toEqual(first);
+    // Two at the same moment still make one order.
+    const both = await Promise.all([
+      order([{ skuId: f.sku.id, quantity: 1 }], { idempotencyKey: 'm1:form-2' }),
+      order([{ skuId: f.sku.id, quantity: 1 }], { idempotencyKey: 'm1:form-2' }),
+    ]);
+    expect(both[0].id).toBe(both[1].id);
+    expect(await prisma.order.count()).toBe(2);
+    expect(await level(f.store.id, f.sku.id)).toEqual({ onHand: 5, reserved: 3 });
+  });
+
+  async function packedOrder() {
+    const { id } = await order([{ skuId: f.sku.id, quantity: 1 }]);
+    await acceptOrder(prisma, { orderId: id, darkStoreId: f.store.id, actorUserId: staff });
+    await pickAll(id);
+    return id;
+  }
+  const deliveryPhoto = async (by: string) =>
+    (
+      await savePhoto(prisma, {
+        kind: 'delivery',
+        contentType: 'image/jpeg',
+        data: Buffer.from('jpeg'),
+        actorUserId: by,
+      })
+    ).id;
+
+  it('takes a pack photo only from the packer, once, and only while fresh', async () => {
+    const a = await packedOrder();
+    const b = await packedOrder();
+    const riderPhoto = (
+      await savePhoto(prisma, {
+        kind: 'pack',
+        contentType: 'image/jpeg',
+        data: Buffer.from('jpeg'),
+        actorUserId: riderUser,
+      })
+    ).id;
+    const pack = (orderId: string, photoId: string) =>
+      packOrder(prisma, { orderId, darkStoreId: f.store.id, photoId, actorUserId: staff });
+    await expect(pack(a, riderPhoto)).rejects.toMatchObject({ code: 'photo_not_usable' });
+    const photo = await packPhoto();
+    await pack(a, photo);
+    await expect(pack(b, photo)).rejects.toMatchObject({ code: 'photo_not_usable' });
+    const old = await packPhoto();
+    await prisma.photo.update({
+      where: { id: old },
+      data: { createdAt: new Date(Date.now() - 31 * 60_000) },
+    });
+    await expect(pack(b, old)).rejects.toMatchObject({ code: 'photo_not_usable' });
+    await pack(b, await packPhoto());
+  });
+
+  it('takes a handover or door photo only from the rider, once, and only while fresh', async () => {
+    const ids = [await packedOrder(), await packedOrder()];
+    const deliveries: string[] = [];
+    for (const id of ids) {
+      await packOrder(prisma, {
+        orderId: id,
+        darkStoreId: f.store.id,
+        photoId: await packPhoto(),
+        actorUserId: staff,
+      });
+      await handToRider(prisma, {
+        orderId: id,
+        darkStoreId: f.store.id,
+        badgeCode: 'RDR-1',
+        actorUserId: staff,
+      });
+      deliveries.push((await prisma.delivery.findFirstOrThrow({ where: { orderId: id } })).id);
+    }
+    const cod = async (id: string) =>
+      (await prisma.order.findUniqueOrThrow({ where: { id } })).codAmountPiastres;
+    const deliver = async (i: number, photoId: string) =>
+      completeDelivery(prisma, {
+        deliveryId: deliveries[i]!,
+        riderUserId: riderUser,
+        photoId,
+        codCollectedPiastres: await cod(ids[i]!),
+      });
+    await expect(deliver(0, await deliveryPhoto(staff))).rejects.toMatchObject({
+      code: 'photo_not_usable',
+    });
+    const photo = await deliveryPhoto(riderUser);
+    await deliver(0, photo);
+    await expect(deliver(1, photo)).rejects.toMatchObject({ code: 'photo_not_usable' });
+    await prisma.delivery.update({ where: { id: deliveries[1]! }, data: { callAttempts: 5 } });
+    await expect(
+      failDelivery(prisma, {
+        deliveryId: deliveries[1]!,
+        riderUserId: riderUser,
+        reason: 'no_answer',
+        photoId: photo,
+      }),
+    ).rejects.toMatchObject({ code: 'photo_not_usable' });
+    const old = await deliveryPhoto(riderUser);
+    await prisma.photo.update({
+      where: { id: old },
+      data: { createdAt: new Date(Date.now() - 31 * 60_000) },
+    });
+    await expect(
+      failDelivery(prisma, {
+        deliveryId: deliveries[1]!,
+        riderUserId: riderUser,
+        reason: 'no_answer',
+        photoId: old,
+      }),
+    ).rejects.toMatchObject({ code: 'photo_not_usable' });
+    await failDelivery(prisma, {
+      deliveryId: deliveries[1]!,
+      riderUserId: riderUser,
+      reason: 'no_answer',
+      photoId: await deliveryPhoto(riderUser),
+    });
+  });
+});

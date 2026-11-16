@@ -270,6 +270,7 @@ export const PAGING_ALERTS = [
   'shopify_sync_failed',
   'transfer_short_sent',
   'transfer_short_received',
+  'return_short',
 ] as const;
 
 interface Candidate {
@@ -705,6 +706,8 @@ function alertText(type: string): PushTextKey {
       return 'alert_item_missing';
     case 'shopify_sync_failed':
       return 'alert_shopify_sync_failed';
+    case 'return_short':
+      return 'alert_return_short';
     default:
       return 'alert_transfer_short';
   }

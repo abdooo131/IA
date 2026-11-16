@@ -68,6 +68,7 @@ import {
   sendTransfer,
 } from '../transfers';
 import { ean13, MERCHANT as SEED_MERCHANT } from '../seed/data';
+import { realOrderCount } from '../startup-flags';
 import {
   clockedClient,
   installClock,
@@ -111,7 +112,7 @@ export interface DemoOptions {
 }
 
 export type DemoResult =
-  | { status: 'already_loaded' | 'partial_run_found' | 'fresh_start_done' }
+  | { status: 'already_loaded' | 'partial_run_found' | 'fresh_start_done' | 'real_data_found' }
   | { status: 'loaded'; seconds: number; counts: Record<string, number> };
 
 const MARKER = 'demo.loaded';
@@ -194,6 +195,12 @@ export async function loadDemo(base: PrismaClient, options: DemoOptions): Promis
         'a previous run stopped midway. Load the demo into a fresh database instead.',
     );
     return { status: 'partial_run_found' };
+  }
+  // Never pour a simulated month over real business (a production database with merchants).
+  const real = await realOrderCount(base);
+  if (real > 0) {
+    log(`Refusing to load demo data: this database holds ${real} orders of real merchants`);
+    return { status: 'real_data_found' };
   }
 
   const started = realNow();

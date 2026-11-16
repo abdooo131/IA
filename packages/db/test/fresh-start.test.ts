@@ -2,7 +2,12 @@ import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadDemo } from '../src/demo';
 import { post } from '../src/finance';
-import { freshStart, freshStartDone, FRESH_START_CONFIRMATION } from '../src/fresh-start';
+import {
+  freshStart,
+  freshStartDone,
+  FRESH_START_CONFIRMATION,
+  FRESH_START_TABLES,
+} from '../src/fresh-start';
 import { createOrder } from '../src/orders';
 import { verifyPassword } from '../src/password';
 import { seed } from '../src/seed';
@@ -108,6 +113,106 @@ beforeAll(async () => {
     actorUserId: staff.id,
   });
 
+  // Activity the demo month does not make, each with links that would block the deletes:
+  // a team note, packaging stock, a month end tick, a queued email, a purchase order, a cheque,
+  // a website lead, a payment reminder.
+  const anOrder = await prisma.order.findFirstOrThrow({ where: { merchantId: eve.id } });
+  await prisma.orderNote.create({
+    data: { orderId: anOrder.id, audience: 'team', authorId: staff.id, body: 'Call first' },
+  });
+  const bag = await prisma.packagingItem.create({
+    data: { code: 'FS-BAG', nameEn: 'Bag', nameAr: 'كيس' },
+  });
+  await prisma.packagingLevel.create({
+    data: { darkStoreId: anOrder.darkStoreId, itemId: bag.id, onHand: 5, valuePiastres: 500 },
+  });
+  await prisma.packagingMovement.create({
+    data: {
+      darkStoreId: anOrder.darkStoreId,
+      itemId: bag.id,
+      type: 'receive',
+      quantity: 5,
+      valuePiastres: 500,
+      idempotencyKey: 'fs:bag',
+      createdById: staff.id,
+    },
+  });
+  await prisma.packagingRecipe.create({
+    data: { merchantId: eve.id, itemId: bag.id, quantity: 1 },
+  });
+  await prisma.monthEndMark.create({
+    data: { month: '2026-10', item: 'receipts', note: 'checked', markedById: staff.id },
+  });
+  await prisma.emailOutbox.create({
+    data: {
+      kind: 'payout_paid',
+      merchantId: eve.id,
+      toEmails: ['eve@example.eg'],
+      language: 'en',
+      subject: 'Paid',
+      html: '<p>Paid</p>',
+      text: 'Paid',
+      idempotencyKey: 'fs:email',
+    },
+  });
+  const supplier = await prisma.supplier.create({
+    data: { name: 'FS Paper Co', createdById: staff.id },
+  });
+  await prisma.purchaseOrder.create({
+    data: {
+      number: 1,
+      supplierId: supplier.id,
+      totalPiastres: 1000,
+      requestedById: staff.id,
+      lines: {
+        create: {
+          lineNo: 1,
+          kind: 'packaging',
+          packagingItemId: bag.id,
+          description: 'Bags',
+          quantity: 10,
+          unitPricePiastres: 100,
+        },
+      },
+    },
+  });
+  await prisma.cheque.create({
+    data: {
+      number: 1,
+      direction: 'received',
+      purpose: 'merchant',
+      status: 'awaiting_approval',
+      chequeNumber: '000123',
+      bankName: 'CIB',
+      partyName: 'Eve Chantelle',
+      amountPiastres: 10_000,
+      issueDate: new Date('2026-11-01'),
+      dueDate: new Date('2026-11-20'),
+      merchantId: eve.id,
+      idempotencyKey: 'fs:cheque',
+      createdById: staff.id,
+    },
+  });
+  await prisma.siteLead.create({
+    data: {
+      name: 'Lead',
+      phone: '01000000001',
+      phoneValid: true,
+      ordersBand: 'under_300',
+      locale: 'en',
+      idempotencyKey: 'fs:lead',
+    },
+  });
+  await prisma.merchantPaymentReminder.create({
+    data: {
+      merchantId: eve.id,
+      periodStart: new Date('2026-11-01'),
+      number: 1,
+      amountPiastres: 100,
+      idempotencyKey: 'fs:reminder',
+    },
+  });
+
   const nabta = await createNabta(prisma, adminId, 'nabta-password-1');
   nabtaId = nabta.merchant.id;
   nabtaSkuId = nabta.sku.id;
@@ -122,6 +227,22 @@ afterAll(async () => {
 });
 
 describe('fresh start', () => {
+  it('decides for every table of the database: wiped, partly removed or kept', async () => {
+    const tables = (
+      await prisma.$queryRaw<{ name: string }[]>`
+        SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`
+    ).map((r) => r.name);
+    const listed = [
+      ...FRESH_START_TABLES.wiped,
+      ...FRESH_START_TABLES.partial,
+      ...FRESH_START_TABLES.kept,
+    ];
+    // A new table must be added to one list (an activity table to wiped and to the deletes).
+    expect(tables.filter((t) => !listed.includes(t as never))).toEqual([]);
+    expect(listed.filter((t) => !tables.includes(t))).toEqual([]);
+    expect(listed.length).toBe(new Set(listed).size);
+  });
+
   it('refuses without the confirmation word', async () => {
     await expect(freshStart(prisma, { confirm: 'yes' })).rejects.toThrow(
       'fresh_start_not_confirmed',
@@ -165,60 +286,24 @@ describe('fresh start', () => {
 
     expect(await kept()).toEqual(before);
 
-    const empty = [
-      'orders',
-      'order_items',
-      'order_events',
-      'order_ratings',
-      'deliveries',
-      'delivered_points',
-      'photos',
-      'stock_levels',
-      'bin_stock',
-      'stock_movements',
-      'inbound_manifests',
-      'inbound_manifest_lines',
-      'stock_counts',
-      'stock_count_lines',
-      'transfers',
-      'transfer_lines',
-      'stock_targets',
-      'merchant_returns',
-      'merchant_return_lines',
-      'damage_reports',
-      'ledger_entries',
-      'ledger_lines',
-      'cash_handovers',
-      'rider_withdrawals',
-      'payouts',
-      'finance_requests',
-      'finance_receipts',
-      'bills',
-      'suppliers',
-      'tax_invoices',
-      'tax_invoice_lines',
-      'bank_statements',
-      'bank_statement_lines',
-      'budgets',
-      'prepayments',
-      'fixed_assets',
-      'recurring_entries',
-      'books_lock',
-      'riders',
-      'punches',
-      'attendance_days',
-      'roster_days',
-      'tickets',
-      'ticket_messages',
-      'alerts',
-      'notifications',
-      'audit_log',
-      'push_sent',
-      'shopify_outbox',
-      'shopify_logs',
-      'geo_suggestions',
-    ];
-    for (const table of empty) expect([table, result.after[table]]).toEqual([table, 0]);
+    for (const table of FRESH_START_TABLES.wiped)
+      expect([table, result.after[table]]).toEqual([table, 0]);
+    // The activity the demo month does not make was there and went too.
+    for (const table of [
+      'order_notes',
+      'packaging_movements',
+      'packaging_levels',
+      'month_end_marks',
+      'email_outbox',
+      'purchase_orders',
+      'purchase_order_lines',
+      'cheques',
+      'site_leads',
+      'merchant_payment_reminders',
+    ])
+      expect([table, result.before[table]! > 0]).toEqual([table, true]);
+    expect(result.after.packaging_recipes).toBe(0);
+    expect(result.after.packaging_items).toBe(1);
 
     // Only the admin (no demo office) and Nabta's owner stay; one employee file.
     const users = await prisma.user.findMany({ orderBy: { email: 'asc' } });

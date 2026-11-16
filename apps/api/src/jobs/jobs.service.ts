@@ -32,6 +32,7 @@ import {
   runReceivableReminders,
   runDepositDeadline,
   purgeUnlinkedUploads,
+  raiseStartupAlert,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
@@ -104,7 +105,18 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     const enabled = setting
       ? setting === 'true'
       : this.config.get('NODE_ENV', { infer: true }) !== 'test';
-    if (!enabled) return;
+    if (!enabled) {
+      // Switched off on a real server (DEMO_LOAD still loading, or JOBS_ENABLED=false): say so
+      // loudly and on the admin alerts page, since nothing late, no sync and no email happens.
+      if (this.config.get('NODE_ENV', { infer: true }) === 'production') {
+        this.log.warn('Background jobs are switched off');
+        const flag = process.env.DEMO_LOAD === 'true' ? 'DEMO_LOAD' : 'JOBS_ENABLED';
+        void raiseStartupAlert(this.prisma, flag, 'jobs_disabled').catch((error: unknown) =>
+          this.log.error(`Could not raise the jobs_disabled alert: ${String(error)}`),
+        );
+      }
+      return;
+    }
     this.timer = setInterval(() => {
       void this.runSlaCheck();
       void this.runStorageCharge();

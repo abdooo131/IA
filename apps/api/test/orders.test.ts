@@ -142,6 +142,22 @@ describe('orders end to end', () => {
     await staff.get('/merchant/orders/kpis').expect(403);
   });
 
+  it('answers a repeated manual order with the first order, even after the store closed', async () => {
+    const merchant = await agent('merchant@evechantelle.example');
+    const body = await orderBody({ idempotencyKey: 'form-key-0001' });
+    const first = await merchant.post('/merchant/orders').send(body).expect(201);
+    const again = await merchant.post('/merchant/orders').send(body).expect(201);
+    expect(again.body).toEqual(first.body);
+    // A retry hours later answers the order already made, before any store or capacity check.
+    clock.set(new Date(NOON_CAIRO.getTime() + 13 * 3_600_000));
+    expect((await merchant.post('/merchant/orders').send(body).expect(201)).body.id).toBe(
+      first.body.id,
+    );
+    expect(await prisma.order.count()).toBe(1);
+    // The same key from admin for another merchant is another order key altogether.
+    expect((await prisma.order.findFirstOrThrow()).idempotencyKey).toMatch(/:form-key-0001$/);
+  });
+
   it('refuses 60 minute delivery outside the zones or when the store is closed', async () => {
     const merchant = await agent('merchant@evechantelle.example');
     const outside = await merchant

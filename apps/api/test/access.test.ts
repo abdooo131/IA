@@ -138,7 +138,8 @@ describe('access rights', () => {
     await cs.agent.get('/admin/customers/overview').expect(200);
     await cs.agent.get('/admin/customers').expect(200);
 
-    // The same person without customer_data reads summaries but no names.
+    // The same person without customer_data opens no customer page: the overview names risky
+    // customers and the places page is built from their addresses.
     await admin
       .put(`/admin/users/${cs.id}/access`)
       .send({
@@ -155,7 +156,10 @@ describe('access rights', () => {
         salaries: false,
       })
       .expect(200);
-    await cs.agent.get('/admin/customers/overview').expect(200);
+    expect((await cs.agent.get('/admin/customers/overview').expect(403)).body.error).toBe(
+      'no_access',
+    );
+    await cs.agent.get('/admin/customers/places').expect(403);
     expect((await cs.agent.get('/admin/customers').expect(403)).body.error).toBe('no_access');
     await cs.agent.get('/admin/customers/some-id').expect(403);
     await cs.agent.get('/admin/customers/export').expect(403);

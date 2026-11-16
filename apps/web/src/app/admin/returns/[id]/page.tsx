@@ -37,7 +37,12 @@ export default async function AdminReturnPage({ params }: { params: Promise<{ id
       entityType="merchant_return"
       canWrite={canDo(profile, 'inventory', 'use')}
     >
-      <ReturnDetailView detail={detail} cancelPath={`${api}/cancel`} framed />
+      <ReturnDetailView
+        detail={detail}
+        cancelPath={`${api}/cancel`}
+        closeShortPath={canDo(profile, 'inventory', 'manage') ? `${api}/close-short` : undefined}
+        framed
+      />
       <DocEntries entries={doc.entries} />
     </DocumentFrame>
   );

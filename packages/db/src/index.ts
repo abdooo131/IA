@@ -34,6 +34,7 @@ export {
   closeDeliveryForRider,
   completeDelivery,
   createOrder,
+  orderByIdempotencyKey,
   decideFailedOrder,
   failDelivery,
   flagLateOrders,
@@ -109,6 +110,7 @@ export {
 } from './tracking';
 export {
   cancelReturn,
+  closeReturnShort,
   createReturn,
   getReturnDetail,
   handOverReturn,
@@ -187,6 +189,12 @@ export * from './hr-pay';
 export * from './hr-checklists';
 export { ensureHrDefaults } from './hr-defaults';
 export { loadDemo, type DemoOptions, type DemoResult } from './demo';
+export {
+  holdsDemo,
+  raiseStartupAlert,
+  realOrderCount,
+  type StartupFlagState,
+} from './startup-flags';
 export {
   freshStart,
   freshStartDone,

@@ -1,4 +1,5 @@
 import { recordAudit } from './audit';
+import type { Prisma } from '@prisma/client';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
 import { getSetting } from './settings';
@@ -38,10 +39,11 @@ async function targetsFor(db: Db, storeIds: string[], skuIds: string[]) {
       min: await getSetting(db, 'refill.default_min_units', id),
       max: await getSetting(db, 'refill.default_max_units', id),
     });
-  return (storeId: string, skuId: string) => {
-    const row = rows.find((r) => r.darkStoreId === storeId && r.skuId === skuId);
-    return row ? { min: row.minUnits, max: row.maxUnits } : defaults.get(storeId)!;
-  };
+  const own = new Map(
+    rows.map((r) => [`${r.darkStoreId}:${r.skuId}`, { min: r.minUnits, max: r.maxUnits }]),
+  );
+  return (storeId: string, skuId: string) =>
+    own.get(`${storeId}:${skuId}`) ?? defaults.get(storeId)!;
 }
 
 /**
@@ -49,7 +51,7 @@ async function targetsFor(db: Db, storeIds: string[], skuIds: string[]) {
  * Returns the drafts made (empty when there is no hub, it is switched off, or nothing is low).
  */
 export function planRefill(db: Db, input: { day: string; actorUserId?: string | null }) {
-  return inTransaction(db, async (tx) => {
+  const run = async (tx: Prisma.TransactionClient) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('refill_plan'))`;
     if (await tx.transfer.findFirst({ where: { origin: 'refill', refillDay: input.day } }))
       return { day: input.day, created: [], alreadyPlanned: true };
@@ -74,27 +76,31 @@ export function planRefill(db: Db, input: { day: string; actorUserId?: string | 
     const skuIds = [...new Set(levels.map((l) => l.skuId))];
     const target = await targetsFor(tx, storeIds, skuIds);
 
-    const free = (locationId: string, skuId: string) => {
-      const l = levels.find((x) => x.darkStoreId === locationId && x.skuId === skuId);
-      // Drafts are not held yet, so what they will take is subtracted here.
-      const drafted = open
-        .filter((t) => t.status === 'draft' && t.fromId === locationId)
-        .flatMap((t) => t.lines)
-        .filter((x) => x.skuId === skuId)
-        .reduce((s, x) => s + x.quantity, 0);
-      return Math.max(0, (l ? l.onHand - l.reserved : 0) - drafted);
-    };
-    /** Units already heading to a store, directly or through the hub. */
-    const coming = (storeId: string, skuId: string) =>
-      open
-        .filter((t) => t.toId === storeId || t.finalDestinationId === storeId)
-        .flatMap((t) => t.lines.map((l) => ({ l, sent: t.status === 'in_transit' })))
-        .filter(({ l }) => l.skuId === skuId)
-        .reduce((s, { l, sent }) => s + (sent ? l.pickedQty - l.receivedQty : l.quantity), 0);
-    const have = (storeId: string, skuId: string) => {
-      const l = levels.find((x) => x.darkStoreId === storeId && x.skuId === skuId);
-      return (l ? l.onHand - l.reserved : 0) + coming(storeId, skuId);
-    };
+    // Everything below is looked up by location and product in maps built once, so the work
+    // grows with the rows read, not with products × stores × rows.
+    const at = (locationId: string, skuId: string) => `${locationId}:${skuId}`;
+    const onShelf = new Map(levels.map((l) => [at(l.darkStoreId, l.skuId), l.onHand - l.reserved]));
+    const drafted = new Map<string, number>();
+    const coming = new Map<string, number>();
+    const bump = (map: Map<string, number>, key: string, n: number) =>
+      map.set(key, (map.get(key) ?? 0) + n);
+    for (const t of open) {
+      // Units already heading to a store, directly or through the hub (counted once).
+      const to = new Set([t.toId, t.finalDestinationId].filter((id): id is string => !!id));
+      for (const l of t.lines) {
+        // Drafts are not held yet, so what they will take is subtracted from the sender.
+        if (t.status === 'draft') bump(drafted, at(t.fromId, l.skuId), l.quantity);
+        const n = t.status === 'in_transit' ? l.pickedQty - l.receivedQty : l.quantity;
+        for (const id of to) bump(coming, at(id, l.skuId), n);
+      }
+    }
+    const free = (locationId: string, skuId: string) =>
+      Math.max(
+        0,
+        (onShelf.get(at(locationId, skuId)) ?? 0) - (drafted.get(at(locationId, skuId)) ?? 0),
+      );
+    const have = (storeId: string, skuId: string) =>
+      (onShelf.get(at(storeId, skuId)) ?? 0) + (coming.get(at(storeId, skuId)) ?? 0);
 
     const plans = new Map<string, Plan>();
     const add = (fromId: string, toId: string, skuId: string, quantity: number) => {
@@ -165,7 +171,11 @@ export function planRefill(db: Db, input: { day: string; actorUserId?: string | 
         after: { drafts: created.map((c) => c.reference) },
       });
     return { day: input.day, created, alreadyPlanned: false };
-  });
+  };
+  // A large catalog takes longer than Prisma's default five seconds.
+  return '$transaction' in db
+    ? db.$transaction(run, { maxWait: 10_000, timeout: 60_000 })
+    : run(db);
 }
 
 /** Sets a store's own refill levels for one product; both null removes them (defaults apply). */

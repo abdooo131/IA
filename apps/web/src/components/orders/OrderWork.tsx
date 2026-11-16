@@ -24,6 +24,7 @@ const KNOWN_ERRORS = [
   'sku_not_on_order',
   'not_fully_picked',
   'photo_required',
+  'photo_not_usable',
   'rider_not_found',
   'rider_other_store',
   'rider_full',

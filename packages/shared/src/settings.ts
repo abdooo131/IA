@@ -107,6 +107,13 @@ export const SETTING_DEFINITIONS = {
       'Wrong delivery codes a rider may type for one delivery before the code is locked and only a handover photo proves it',
     override: 'none',
   },
+  'delivery.proof_photo_max_minutes': {
+    schema: z.number().int().min(5).max(240),
+    default: 30,
+    description:
+      'Minutes a pack, handover or door photo stays usable after it was taken; each photo proves one order or delivery only',
+    override: 'none',
+  },
   'tracking.rider_ping_seconds': {
     schema: z.number().int().min(5).max(300),
     default: 20,

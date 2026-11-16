@@ -9,6 +9,7 @@ import { AreaSearchBox } from '@/components/geo/AreaSearchBox';
 import type { Pin } from '@/components/geo/PinMap';
 import { localized } from '@/lib/admin-types';
 import { apiGetClient, apiSend } from '@/lib/api-client';
+import { newActionKey } from '@/lib/ids';
 import { formatCairoDateTime } from '@/lib/format';
 import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
@@ -63,6 +64,8 @@ export function NewOrderForm({
   const [lines, setLines] = useState([{ skuId: choices[0]?.id ?? '', quantity: 1 }]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // One key per form: a double tap or a retry after a lost answer creates one order.
+  const [actionKey] = useState(newActionKey);
   const [dirty, setDirty] = useState(false);
   const [areaNote, setAreaNote] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -117,9 +120,13 @@ export function NewOrderForm({
       paymentMethod: form.get('paymentMethod'),
       deliveryFeePiastres: Number.isFinite(fee) && fee >= 0 ? fee : 0,
       items: lines.filter((l) => l.skuId),
+      idempotencyKey: actionKey,
     });
-    setBusy(false);
-    if (!result.ok) return setError(tErr(KNOWN.includes(result.error) ? result.error : 'generic'));
+    if (!result.ok) {
+      setBusy(false);
+      return setError(tErr(KNOWN.includes(result.error) ? result.error : 'generic'));
+    }
+    // Save stays busy until the order page replaces the form.
     setDirty(false);
     router.push(`${detailBase}/${result.data.id}?created=1`);
     router.refresh();

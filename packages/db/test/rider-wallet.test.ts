@@ -165,7 +165,7 @@ describe('earning', () => {
       kind: 'delivery',
       contentType: 'image/jpeg',
       data: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
-      actorUserId: admin,
+      actorUserId: riderUserId,
     });
     await failDelivery(prisma, {
       deliveryId: delivery.id,

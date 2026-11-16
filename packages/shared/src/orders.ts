@@ -118,6 +118,8 @@ export const createOrderSchema = z
     items: z.array(orderItemInputSchema).min(1).max(100),
     /** Admin only: which merchant the order belongs to */
     merchantId: id.optional(),
+    /** One per form: a double submit or a retry answers the first order */
+    idempotencyKey: z.string().min(8).max(100).optional(),
   })
   .refine((o) => new Set(o.items.map((i) => i.skuId)).size === o.items.length, {
     message: 'duplicate_sku',

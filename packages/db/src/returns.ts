@@ -12,7 +12,8 @@ import { dispatch, release, reserve, StockError } from './stock';
 // picked the merchant (or admin) can still cancel, which releases the reservations.
 //
 //   requested ──pick──▶ picking ──last unit──▶ ready ──hand over──▶ collected
-//       │
+//       │                  │
+//       │                  └──close short──▶ ready (units not found are let go and recorded)
 //       └──cancel──▶ cancelled (only before the first unit is picked)
 
 type Tx = Prisma.TransactionClient;
@@ -35,6 +36,11 @@ export interface CreateReturnInput {
   note?: string;
   lines: { skuId: string; source: StockSource; quantity: number }[];
   actorUserId: string;
+}
+
+/** Units of a line still to take off the shelf (closed short units are no longer wanted). */
+function stillToPick(l: { quantity: number; pickedQty: number; shortQty: number }) {
+  return l.quantity - l.pickedQty - l.shortQty;
 }
 
 async function lockReturn(tx: Tx, returnId: string) {
@@ -60,10 +66,10 @@ async function unclaimed(tx: Tx, darkStoreId: string, skuId: string, source: Sto
     }),
     tx.merchantReturnLine.findMany({
       where: { skuId, source, return: { darkStoreId, status: { in: OPEN } } },
-      select: { quantity: true, pickedQty: true },
+      select: { quantity: true, pickedQty: true, shortQty: true },
     }),
   ]);
-  const open = claimed.reduce((s, l) => s + l.quantity - l.pickedQty, 0);
+  const open = claimed.reduce((s, l) => s + stillToPick(l), 0);
   return (inBins._sum.quantity ?? 0) - open;
 }
 
@@ -86,12 +92,12 @@ export async function returnableStock(db: Db, merchantId: string, darkStoreId: s
       source: { not: 'sellable' },
       return: { darkStoreId, status: { in: OPEN } },
     },
-    select: { skuId: true, source: true, quantity: true, pickedQty: true },
+    select: { skuId: true, source: true, quantity: true, pickedQty: true, shortQty: true },
   });
   const open = (skuId: string, source: StockSource) =>
     claimed
       .filter((l) => l.skuId === skuId && l.source === source)
-      .reduce((s, l) => s + l.quantity - l.pickedQty, 0);
+      .reduce((s, l) => s + stillToPick(l), 0);
   const inBins = (sku: (typeof skus)[number], type: BinType) =>
     sku.binStock.filter((b) => b.bin.type === type).reduce((s, b) => s + b.quantity, 0);
   return skus
@@ -202,7 +208,7 @@ export function pickForReturn(db: Db, input: PickReturnInput) {
     const line = ret.lines.find(
       (l) =>
         l.skuId === input.skuId &&
-        l.quantity - l.pickedQty >= input.quantity &&
+        stillToPick(l) >= input.quantity &&
         (!wanted || l.source === wanted),
     );
     if (!line) {
@@ -245,7 +251,7 @@ export function pickForReturn(db: Db, input: PickReturnInput) {
       data: { pickedQty: { increment: input.quantity } },
     });
     const done = ret.lines.every(
-      (l) => l.pickedQty + (l.id === line.id ? input.quantity : 0) === l.quantity,
+      (l) => l.pickedQty + l.shortQty + (l.id === line.id ? input.quantity : 0) === l.quantity,
     );
     const status: ReturnStatus = done ? 'ready' : 'picking';
     await tx.merchantReturn.update({
@@ -298,6 +304,80 @@ export function handOverReturn(
       after: { status: 'collected', collectedBy: input.collectedBy.trim(), units },
     });
     return { status: 'collected' as const, units };
+  });
+}
+
+/**
+ * Some units of a return cannot be found. Once at least one unit is picked, a store manager or
+ * inventory manager closes it short: the sellable units not picked are released (back on sale),
+ * damaged and held units not picked stop being claimed, each line records how many were not
+ * found, one return_short alert is raised and the return is ready to hand over with what was
+ * picked. The return fee is charged on the picked units only, at hand over.
+ */
+export function closeReturnShort(
+  db: Db,
+  input: { returnId: string; darkStoreId?: string; reason: string; actorUserId: string },
+) {
+  return inTransaction(db, async (tx) => {
+    const ret = await lockReturn(tx, input.returnId);
+    if (input.darkStoreId && ret.darkStoreId !== input.darkStoreId)
+      throw new DomainError('return_not_found', 404);
+    // Nothing picked yet: the merchant or admin cancels instead.
+    if (ret.status !== 'picking') throw new DomainError('invalid_return_state');
+    const short = ret.lines
+      .map((l) => ({ line: l, missing: stillToPick(l) }))
+      .filter((x) => x.missing > 0);
+    for (const { line, missing } of short) {
+      if (line.source === 'sellable')
+        await release(tx, {
+          darkStoreId: ret.darkStoreId,
+          skuId: line.skuId,
+          quantity: missing,
+          reason: `return_short:${ret.id}`,
+          actorUserId: input.actorUserId,
+        });
+      await tx.merchantReturnLine.update({
+        where: { id: line.id },
+        data: { shortQty: { increment: missing } },
+      });
+    }
+    const lines = short.map(({ line, missing }) => ({
+      skuId: line.skuId,
+      source: line.source,
+      missing,
+    }));
+    const now = new Date();
+    await tx.merchantReturn.update({
+      where: { id: ret.id },
+      data: { status: 'ready', readyAt: now },
+    });
+    if (lines.length > 0)
+      await tx.alert.create({
+        data: {
+          type: 'return_short',
+          darkStoreId: ret.darkStoreId,
+          data: {
+            returnId: ret.id,
+            reference: ret.reference,
+            reason: input.reason.trim(),
+            lines,
+          },
+        },
+      });
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'return.close_short',
+      entityType: 'merchant_return',
+      entityId: ret.id,
+      before: { status: 'picking' },
+      after: {
+        status: 'ready',
+        reason: input.reason.trim(),
+        units: ret.lines.reduce((s, l) => s + l.pickedQty, 0),
+        short: lines,
+      },
+    });
+    return { status: 'ready' as const, short: lines };
   });
 }
 
@@ -431,6 +511,7 @@ export async function getReturnDetail(db: Db, returnId: string) {
       source: l.source,
       quantity: l.quantity,
       pickedQty: l.pickedQty,
+      shortQty: l.shortQty,
       bins: bins
         .filter((b) => b.skuId === l.skuId && b.bin.type === BIN_OF[l.source])
         .map((b) => ({ code: b.bin.code, quantity: b.quantity })),

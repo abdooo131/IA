@@ -43,6 +43,8 @@ export interface ReturnDetail {
     source: StockSource;
     quantity: number;
     pickedQty: number;
+    /** Units not found when the return was closed short */
+    shortQty: number;
     bins: { code: string; quantity: number }[];
   }[];
 }

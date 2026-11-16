@@ -194,6 +194,13 @@ export const PUSH_TEXT = {
     en: ['Transfer {reference} is short', 'Units are missing on the transfer to {store}.'],
     ar: ['التحويل {reference} ناقص', 'وحدات ناقصة في التحويل إلى {store}.'],
   },
+  alert_return_short: {
+    en: [
+      'Return {reference} closed short',
+      'Units of a return to the merchant were not found at {store}.',
+    ],
+    ar: ['المرتجع {reference} اتقفل بالناقص', 'قطع من مرتجع للتاجر مش موجودة في {store}.'],
+  },
   merchant_signup: {
     en: ['New merchant sign up', '{name} signed up.'],
     ar: ['تسجيل تاجر جديد', '{name} سجّل حسابًا جديدًا.'],

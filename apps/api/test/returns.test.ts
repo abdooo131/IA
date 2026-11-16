@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, resetAndSeed } from './helpers';
+import { createTestApp, grantAccess, resetAndSeed } from './helpers';
 
 const DEMO = 'demo-password-1';
 
@@ -105,5 +105,59 @@ describe('returns to the merchant end to end', () => {
     expect(after.body.find((r: { skuId: string }) => r.skuId === row.skuId).sellable).toBe(
       row.sellable,
     );
+  });
+
+  it('a store manager or inventory manager closes a return short when units cannot be found', async () => {
+    const merchant = await agent('merchant@evechantelle.example');
+    const stock = await merchant.get(`/merchant/returns/stock?darkStoreId=${ncr}`).expect(200);
+    const row = stock.body.find((r: { sellable: number }) => r.sellable >= 2);
+    const ask = () =>
+      merchant
+        .post('/merchant/returns')
+        .send({ darkStoreId: ncr, lines: [{ skuId: row.skuId, source: 'sellable', quantity: 2 }] })
+        .expect(201);
+    const first = (await ask()).body;
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    const base = `/stores/${ncr}/returns/${first.id}`;
+    await staff
+      .post(`${base}/pick`)
+      .send({ skuId: row.skuId, idempotencyKey: randomUUID() })
+      .expect(201);
+
+    // Plain store staff may not; a store manager may, with a reason.
+    await staff.post(`${base}/close-short`).send({ reason: 'Shelf is empty' }).expect(403);
+    const user = await prisma.user.findFirstOrThrow({
+      where: { email: 'staff.newcairo@shiplynow.local' },
+    });
+    await grantAccess(prisma, user.id, 'store_manager', [ncr]);
+    const manager = await agent('staff.newcairo@shiplynow.local');
+    await manager.post(`${base}/close-short`).send({ reason: 'no' }).expect(400);
+    const closed = await manager
+      .post(`${base}/close-short`)
+      .send({ reason: 'Shelf is empty' })
+      .expect(201);
+    expect(closed.body).toEqual({
+      status: 'ready',
+      short: [{ skuId: row.skuId, source: 'sellable', missing: 1 }],
+    });
+    await manager.post(`${base}/hand-over`).send({ collectedBy: 'Driver Mona' }).expect(201);
+    const after = await merchant.get(`/merchant/returns/stock?darkStoreId=${ncr}`).expect(200);
+    expect(after.body.find((r: { skuId: string }) => r.skuId === row.skuId).sellable).toBe(
+      row.sellable - 1,
+    );
+
+    // Inventory manage closes one from the admin page.
+    const second = (await ask()).body;
+    await staff
+      .post(`/stores/${ncr}/returns/${second.id}/pick`)
+      .send({ skuId: row.skuId, idempotencyKey: randomUUID() })
+      .expect(201);
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const done = await admin
+      .post(`/admin/returns/${second.id}/close-short`)
+      .send({ reason: 'Counted twice, not there' })
+      .expect(201);
+    expect(done.body.status).toBe('ready');
+    expect(await prisma.alert.count({ where: { type: 'return_short' } })).toBe(2);
   });
 });

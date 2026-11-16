@@ -70,8 +70,9 @@ describe('appsFor', () => {
     expect(pages('finance_officer')).not.toContain('/finance/payroll');
     expect(pages('finance_manager')).toContain('/finance/payroll');
     expect(pages('finance_manager')).not.toContain('/finance/opening');
-    expect(pages('operations_manager')).toContain('/admin/customers/places');
+    expect(pages('operations_manager')).not.toContain('/admin/customers/places');
     expect(pages('operations_manager')).not.toContain('/admin/customers');
+    expect(pages('customer_service')).toContain('/admin/customers/places');
     expect(pages('customer_service')).toContain('/admin/customers');
   });
 

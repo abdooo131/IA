@@ -70,7 +70,12 @@ try {
 } catch {
   /* no result: keep the environment as it is */
 }
-if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
+if (env.DEMO_LOAD === 'true') {
+  env.JOBS_ENABLED = 'false';
+  log('DEMO_LOAD is set and the demo month is not complete: background jobs are OFF');
+}
+if (env.JOBS_ENABLED === 'false')
+  log('background jobs are OFF (late flags, Shopify sync, emails, push); admins see an alert');
 
 const children = [];
 function start(name, command, args, cwd) {

@@ -3,6 +3,7 @@ import { setSetting } from '../src/settings';
 import { merchantOwed } from '../src/finance';
 import {
   cancelReturn,
+  closeReturnShort,
   createReturn,
   getReturnDetail,
   handOverReturn,
@@ -204,5 +205,80 @@ describe('return scans retried at the same moment', () => {
     const line = await prisma.merchantReturnLine.findFirstOrThrow({ where: { returnId: ret.id } });
     expect(line.pickedQty).toBe(1);
     expect(await binQty(f.shelfA.id, f.sku.id)).toBe(4);
+  });
+});
+
+describe('closing a return short', () => {
+  it('releases sellable units not found, frees damaged claims, alerts and hands over the rest', async () => {
+    await setSetting(prisma, {
+      key: 'fee.return_per_unit_piastres',
+      value: 300,
+      actorUserId: staff,
+    });
+    const ret = await request([
+      { skuId: f.sku.id, source: 'sellable', quantity: 4 },
+      { skuId: f.sku.id, source: 'damaged', quantity: 2 },
+    ]);
+    // Nothing picked yet: cancel is the way out, not close short.
+    await expect(
+      closeReturnShort(prisma, { returnId: ret.id, reason: 'not found', actorUserId: staff }),
+    ).rejects.toMatchObject({ code: 'invalid_return_state' });
+    await pickOne(ret.id, { binId: f.shelfA.id, quantity: 3 });
+    await pickOne(ret.id, { binId: f.damaged.id });
+    expect(await level(f.store.id, f.sku.id)).toEqual({ onHand: 2, reserved: 1 });
+    // Another store cannot close it.
+    await expect(
+      closeReturnShort(prisma, {
+        returnId: ret.id,
+        darkStoreId: 'elsewhere',
+        reason: 'not found',
+        actorUserId: staff,
+      }),
+    ).rejects.toMatchObject({ code: 'return_not_found' });
+
+    expect(
+      await closeReturnShort(prisma, {
+        returnId: ret.id,
+        darkStoreId: f.store.id,
+        reason: 'Shelf count was wrong',
+        actorUserId: staff,
+      }),
+    ).toEqual({
+      status: 'ready',
+      short: [
+        { skuId: f.sku.id, source: 'sellable', missing: 1 },
+        { skuId: f.sku.id, source: 'damaged', missing: 1 },
+      ],
+    });
+    // The sellable unit not found is no longer reserved; the damaged one is no longer claimed.
+    expect(await level(f.store.id, f.sku.id)).toEqual({ onHand: 2, reserved: 0 });
+    expect(await returnableStock(prisma, f.merchant.id, f.store.id)).toEqual([
+      expect.objectContaining({ sellable: 2, damaged: 1 }),
+    ]);
+    const detail = await getReturnDetail(prisma, ret.id);
+    expect(detail?.lines.map((l) => [l.source, l.quantity, l.pickedQty, l.shortQty])).toEqual([
+      ['sellable', 4, 3, 1],
+      ['damaged', 2, 1, 1],
+    ]);
+    const alert = await prisma.alert.findFirstOrThrow({ where: { type: 'return_short' } });
+    expect(alert).toMatchObject({ darkStoreId: f.store.id });
+    expect(alert.data).toMatchObject({ reference: 'RET-1001', reason: 'Shelf count was wrong' });
+    expect(
+      await prisma.auditLog.count({ where: { action: 'return.close_short', entityId: ret.id } }),
+    ).toBe(1);
+    // Closing again or picking more is refused; handing over charges the picked units only.
+    await expect(
+      closeReturnShort(prisma, { returnId: ret.id, reason: 'again', actorUserId: staff }),
+    ).rejects.toMatchObject({ code: 'invalid_return_state' });
+    await expect(pickOne(ret.id)).rejects.toMatchObject({ code: 'invalid_return_state' });
+    expect(
+      await handOverReturn(prisma, {
+        returnId: ret.id,
+        darkStoreId: f.store.id,
+        collectedBy: 'Mona',
+        actorUserId: staff,
+      }),
+    ).toEqual({ status: 'collected', units: 4 });
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(-1200);
   });
 });

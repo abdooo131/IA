@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
+  closeReturnShort,
   DomainError,
   getReturnDetail,
   handOverReturn,
@@ -9,6 +10,7 @@ import {
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
+  closeReturnShortSchema,
   type ReturnPickBody,
   returnHandOverSchema,
   returnPickSchema,
@@ -79,6 +81,25 @@ export class StoreReturnsController {
       returnId: id,
       darkStoreId: storeId,
       collectedBy: body.collectedBy,
+      actorUserId: user.sub,
+    });
+  }
+
+  /** Units that cannot be found: the store manager closes the return short (store manage). */
+  @Post(':id/close-short')
+  @Access('store', 'manage')
+  async closeShort(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(closeReturnShortSchema))
+    body: z.infer<typeof closeReturnShortSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.access.check(user, storeId);
+    return closeReturnShort(this.prisma, {
+      returnId: id,
+      darkStoreId: storeId,
+      reason: body.reason,
       actorUserId: user.sub,
     });
   }

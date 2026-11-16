@@ -9,6 +9,7 @@ import { apiGetClient, apiSend } from '@/lib/api-client';
 import { newActionKey } from '@/lib/ids';
 import type { ReturnDetail } from '@/lib/return-types';
 import { title } from '@/lib/store-types';
+import { CloseShortPanel } from './CloseShortPanel';
 import { ReturnStatusChip } from './ReturnStatusChip';
 
 const KNOWN = [
@@ -23,7 +24,16 @@ const primary =
   'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 
 /** Staff pick a merchant return by scan (bin first is optional), then hand it over. */
-export function StoreReturnWork({ storeId, initial }: { storeId: string; initial: ReturnDetail }) {
+export function StoreReturnWork({
+  storeId,
+  initial,
+  canCloseShort = false,
+}: {
+  storeId: string;
+  initial: ReturnDetail;
+  /** Store managers close a return short when units cannot be found */
+  canCloseShort?: boolean;
+}) {
   const t = useTranslations('returns');
   const tScan = useTranslations('scan');
   const locale = useLocale();
@@ -134,7 +144,10 @@ export function StoreReturnWork({ storeId, initial }: { storeId: string; initial
                 {l.pickedQty}/{l.quantity}
               </span>
             </div>
-            {l.pickedQty < l.quantity && l.bins.length > 0 && (
+            {l.shortQty > 0 && (
+              <p className="text-caption text-danger">{t('shortUnits', { count: l.shortQty })}</p>
+            )}
+            {l.pickedQty + l.shortQty < l.quantity && l.bins.length > 0 && (
               <p className="text-caption">
                 {t('where')}:{' '}
                 <span className="ltr-iso">
@@ -145,6 +158,16 @@ export function StoreReturnWork({ storeId, initial }: { storeId: string; initial
           </li>
         ))}
       </ul>
+
+      {canCloseShort && ret.status === 'picking' && (
+        <CloseShortPanel
+          path={`${base}/close-short`}
+          onDone={() => {
+            action.ok(t('closedShort'));
+            void reload();
+          }}
+        />
+      )}
 
       {ret.status === 'ready' && (
         <section className="space-y-2 rounded-lg border border-line bg-surface p-4">
