@@ -484,9 +484,43 @@ const base64url = z
   .max(512)
   .regex(/^[A-Za-z0-9_-]+=*$/);
 
+/** Hosts of the browsers' push services; a subscription may only point at one of them. */
+const PUSH_SERVICE_HOSTS = [
+  'fcm.googleapis.com',
+  'updates.push.services.mozilla.com',
+  'web.push.apple.com',
+] as const;
+const PUSH_SERVICE_SUFFIXES = ['.push.apple.com', '.notify.windows.com'] as const;
+
+/**
+ * True for an https address on a known push service (Chrome and Android, Firefox, Safari,
+ * Edge). Anything else would let a person make our server call any address (POST
+ * /me/push/test), so it is refused.
+ */
+export function isPushServiceUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) return false;
+  if (url.port && url.port !== '443') return false;
+  const host = url.hostname.toLowerCase();
+  return (
+    (PUSH_SERVICE_HOSTS as readonly string[]).includes(host) ||
+    PUSH_SERVICE_SUFFIXES.some((suffix) => host.endsWith(suffix) && host.length > suffix.length)
+  );
+}
+
 /** Body of POST /me/push/subscriptions: what the browser's PushManager answers, plus the language. */
 export const pushSubscriptionSchema = z.object({
-  endpoint: z.string().url().max(1000).startsWith('https://'),
+  endpoint: z
+    .string()
+    .url()
+    .max(1000)
+    .startsWith('https://')
+    .refine(isPushServiceUrl, { message: 'push_service_not_allowed' }),
   keys: z.object({ p256dh: base64url, auth: base64url }),
   /** Missing: a new device starts in English, a known one keeps its language */
   lang: z.enum(PUSH_LANGS).optional(),
