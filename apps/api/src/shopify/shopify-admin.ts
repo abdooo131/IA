@@ -84,7 +84,11 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
     variables: Record<string, unknown> = {},
   ) {
     const version = this.config.get('SHOPIFY_API_VERSION', { infer: true });
-    // Throttling and server errors are retried with growing waits; anything else is final.
+    // Throttling (never applied) is retried with growing waits. A timeout or server error may
+    // hide a change Shopify already made, so it is retried here only for reads and for
+    // mutations carrying an @idempotent key; other mutations are left to their caller, which
+    // checks what Shopify already has before trying again (see ShopifySyncService).
+    const repeatable = isRepeatable(query);
     for (let attempt = 0; ; attempt++) {
       let res: Response;
       try {
@@ -95,14 +99,14 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
           signal: AbortSignal.timeout(20_000),
         });
       } catch (error) {
-        if (attempt < 3) {
+        if (repeatable && attempt < 3) {
           await sleep(500 * 2 ** attempt);
           continue;
         }
         throw new ShopifyApiError(`network: ${(error as Error).message}`, true);
       }
       if (res.status === 429 || res.status >= 500) {
-        if (attempt < 3) {
+        if ((res.status === 429 || repeatable) && attempt < 3) {
           await sleep(Number(res.headers.get('retry-after') ?? 0) * 1000 || 500 * 2 ** attempt);
           continue;
         }
@@ -224,6 +228,15 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
       refreshTokenExpiresIn: body.refresh_token_expires_in,
     };
   }
+}
+
+/**
+ * Whether sending an operation twice is harmless: every query, and a mutation with an
+ * @idempotent key (Shopify applies one key once).
+ */
+export function isRepeatable(query: string) {
+  const body = query.replace(/#[^\n]*/g, '').trimStart();
+  return !body.startsWith('mutation') || /@idempotent\b/.test(body);
 }
 
 /** "1249.50" (Shopify money string) to integer piastres, without floats. */

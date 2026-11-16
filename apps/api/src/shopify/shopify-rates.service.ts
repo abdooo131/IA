@@ -115,17 +115,7 @@ export class ShopifyRatesService {
     for (const item of items) {
       const code = (item.sku ?? '').trim();
       const variant = item.variant_id ? `gid://shopify/ProductVariant/${item.variant_id}` : null;
-      const sku = await this.prisma.sku.findFirst({
-        where: {
-          merchantId: shop.merchantId,
-          isActive: true,
-          OR: [
-            ...(variant ? [{ shopifyVariantId: variant }] : []),
-            ...(code ? [{ sku: code }] : []),
-          ],
-        },
-        select: { id: true },
-      });
+      const sku = await this.shopify.findSku(shop.merchantId, variant, code);
       if (!sku) return none('unknown_product');
       wanted.set(sku.id, (wanted.get(sku.id) ?? 0) + Math.max(0, Number(item.quantity) || 0));
     }

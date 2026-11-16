@@ -483,6 +483,20 @@ export const SETTING_DEFINITIONS = {
       'Phone and browser notifications are sent (1) or not (0); they also need the VAPID keys',
     override: 'none',
   },
+  'shopify.log_retention_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 30,
+    description:
+      'Days the Shopify log (every call in or out) is kept before the daily job deletes it',
+    override: 'none',
+  },
+  'shopify.outbox_retention_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 60,
+    description:
+      'Days a finished Shopify call (sent, or given up after its last try) is kept before the daily job deletes it',
+    override: 'none',
+  },
   'signup.auto_approve': {
     schema: z.number().int().min(0).max(1),
     default: 1,

@@ -523,6 +523,8 @@
         "hr__office_lat": "Office latitude (for office staff)",
         "hr__office_lng": "Office longitude (for office staff)",
         "push__enabled": "Phone and browser notifications on (1) or off (0)",
+        "shopify__log_retention_days": "Keep the Shopify log for (days)",
+        "shopify__outbox_retention_days": "Keep finished Shopify calls for (days)",
         "stock__packaging_low_units": "Packaging low alert at (units)",
         "finance__po_bill_tolerance_bp": "Bill above purchase order allowed by (%)",
         "sales__auto_assign": "Give new leads to reps in turn (1 on, 0 off)",
@@ -7968,7 +7970,9 @@
       "ship_normally": "sent by standard delivery after a failed attempt",
       "cancel": "cancelled after a failed attempt",
       "hold_expired": "nobody decided in time after the failed attempt",
-      "merchant_cancelled": "cancelled by the merchant"
+      "merchant_cancelled": "cancelled by the merchant",
+      "shopify_cancellation": "the merchant cancelled it in Shopify",
+      "shopify_accept_failed": "Shopify did not let us take the order, so the merchant ships it"
     }
   },
   "contracts": {

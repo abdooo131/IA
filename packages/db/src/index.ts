@@ -100,7 +100,13 @@ export {
 } from './admin-ops';
 export { computeKpis, type KpiFilter, type Kpis, type KpiTotals } from './kpis';
 export * from './finance';
-export { queueShopify, type ShopifyOutboxKind } from './shopify/outbox';
+export {
+  pruneShopifyRecords,
+  queueShopify,
+  releaseFulfillmentOrder,
+  SHOPIFY_OUTBOX_MAX_ATTEMPTS,
+  type ShopifyOutboxKind,
+} from './shopify/outbox';
 export {
   getTracking,
   getTrackingPhoto,

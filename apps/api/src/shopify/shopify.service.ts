@@ -239,6 +239,20 @@ export class ShopifyService {
     return this.prisma.shopifyShop.findMany({ where: { status: 'active' } });
   }
 
+  /**
+   * The merchant's active product for a Shopify line: the one linked to the variant first
+   * (it stays right when the SKU was renamed in Shopify), then the one with the same code.
+   */
+  async findSku(merchantId: string, variantId: string | null, code: string) {
+    const byVariant = variantId
+      ? await this.prisma.sku.findFirst({
+          where: { merchantId, isActive: true, shopifyVariantId: variantId },
+        })
+      : null;
+    if (byVariant || !code) return byVariant;
+    return this.prisma.sku.findFirst({ where: { merchantId, isActive: true, sku: code } });
+  }
+
   async record(
     shopId: string | null,
     entry: {

@@ -1036,6 +1036,8 @@ model Order {
   slaStartsAt               DateTime?     @map("sla_starts_at")
   /// Shopify fulfillment created when the order left with a rider
   shopifyFulfillmentId      String?       @map("shopify_fulfillment_id")
+  /// When Shopify heard our acceptance of the fulfillment request (null: not yet, or never asked)
+  shopifyAcceptedAt         DateTime?     @map("shopify_accepted_at")
   acceptedAt                DateTime?     @map("accepted_at")
   pickingStartedAt          DateTime?     @map("picking_started_at")
   pickedAt                  DateTime?     @map("picked_at")
@@ -1918,6 +1920,10 @@ model ShopifyStockSync {
   lastPushedQty Int?      @map("last_pushed_qty")
   pushedAt      DateTime? @map("pushed_at")
   lastError     String?   @map("last_error")
+  /// Pushes refused in a row for this product at this location (0 after a success)
+  failures      Int       @default(0)
+  /// A refused product waits until then before it is tried again
+  retryAt       DateTime? @map("retry_at")
 
   location ShopifyLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
   sku      Sku             @relation(fields: [skuId], references: [id])
@@ -1932,7 +1938,7 @@ model ShopifyOutbox {
   id             String    @id @default(cuid())
   shopId         String    @map("shop_id")
   orderId        String?   @map("order_id")
-  /// fulfill, delivered, failed, cancel_items
+  /// fulfill, delivered, failed, cancel_items, close
   kind           String
   payload        Json?
   idempotencyKey String    @unique @map("idempotency_key")
@@ -1946,6 +1952,7 @@ model ShopifyOutbox {
   order Order?      @relation(fields: [orderId], references: [id])
 
   @@index([doneAt, nextAttemptAt])
+  @@index([shopId, orderId])
   @@map("shopify_outbox")
 }
 

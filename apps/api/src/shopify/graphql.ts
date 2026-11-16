@@ -230,6 +230,61 @@ export const FULFILLMENT_CREATE = /* GraphQL */ `
   }
 `;
 
+/**
+ * Where a fulfillment order stands, with its fulfillments: read before a call that must not be
+ * made twice (a fulfillment already created after a lost answer is adopted, not made again).
+ */
+export const FULFILLMENT_ORDER_STATE = /* GraphQL */ `
+  query FulfillmentOrderState($id: ID!) {
+    fulfillmentOrder(id: $id) {
+      id
+      status
+      requestStatus
+      fulfillments(first: 10) {
+        nodes {
+          id
+          status
+        }
+      }
+    }
+  }
+`;
+
+/** The events already on a fulfillment, so one is never sent twice after a lost answer. */
+export const FULFILLMENT_EVENTS = /* GraphQL */ `
+  query FulfillmentEvents($id: ID!) {
+    fulfillment(id: $id) {
+      id
+      events(first: 50) {
+        nodes {
+          status
+          happenedAt
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * We cancelled the order after accepting the request: the fulfillment order is closed as
+ * incomplete, so the merchant can move it or request fulfillment again.
+ */
+export const FULFILLMENT_ORDER_CLOSE = /* GraphQL */ `
+  mutation FulfillmentOrderClose($id: ID!, $message: String) {
+    fulfillmentOrderClose(id: $id, message: $message) {
+      fulfillmentOrder {
+        id
+        status
+        requestStatus
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 export const FULFILLMENT_EVENT_CREATE = /* GraphQL */ `
   mutation FulfillmentEventCreate($fulfillmentEvent: FulfillmentEventInput!) {
     fulfillmentEventCreate(fulfillmentEvent: $fulfillmentEvent) {

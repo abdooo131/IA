@@ -763,6 +763,11 @@ export function cancelOrder(
     darkStoreId?: string;
     /** The caller may cancel only from these states (merchants: new or accepted), checked under the lock */
     allowedStates?: OrderStatus[];
+    /**
+     * A Shopify order hands its fulfillment order back to the merchant (default). False when
+     * Shopify itself asked for the cancellation or never let us take the order.
+     */
+    tellShopify?: boolean;
   },
 ) {
   return inTransaction(db, async (tx) => {
@@ -800,6 +805,9 @@ export function cancelOrder(
       number: order.number,
       reason: input.reason,
     });
+    // We never cancel the Shopify order itself: its fulfillment order goes back to the merchant.
+    if (input.tellShopify !== false)
+      await queueShopify(tx, order, 'close', `order:${order.id}:close`, { reason: input.reason });
   });
 }
 

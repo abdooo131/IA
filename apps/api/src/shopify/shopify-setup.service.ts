@@ -104,6 +104,8 @@ export interface CatalogSyncResult {
   linked: number;
   /** Prices changed in Shopify and copied to our catalog (automatic sync only) */
   repriced?: number;
+  /** Products whose SKU was renamed in Shopify: ours took the new code and kept its link */
+  renamed?: number;
   created: number;
   alreadyLinked: number;
   notInCatalog: { sku: string; title: string }[];
@@ -845,12 +847,12 @@ export class ShopifySetupService {
         result,
       );
     }
-    const changed = result.linked + result.created + (result.repriced ?? 0);
+    const changed = result.linked + result.created + (result.repriced ?? 0) + (result.renamed ?? 0);
     await this.shopify.record(shop.id, {
       direction: 'in',
       kind: 'product_sync',
       ok: true,
-      message: `${product.title ?? productGid}: ${result.linked} linked, ${result.created} added, ${result.repriced ?? 0} repriced`,
+      message: `${product.title ?? productGid}: ${result.linked} linked, ${result.created} added, ${result.repriced ?? 0} repriced, ${result.renamed ?? 0} renamed`,
     });
     if (changed)
       await this.prisma.$transaction((tx) =>
@@ -907,9 +909,31 @@ export class ShopifySetupService {
       shopifyProductId: v.product.id,
       shopifyInventoryItemId: v.inventoryItem?.id ?? null,
     };
-    const ours = await this.prisma.sku.findUnique({
+    let ours = await this.prisma.sku.findUnique({
       where: { merchantId_sku: { merchantId: shop.merchantId, sku: code } },
     });
+    if (!ours) {
+      // The variant is already linked to one of our products under another code: the SKU was
+      // renamed in Shopify. That product (with its stock) takes the new code and keeps the link.
+      const linked = await this.prisma.sku.findFirst({
+        where: { merchantId: shop.merchantId, shopifyVariantId: v.id },
+      });
+      if (linked) {
+        ours = await this.prisma.$transaction(async (tx) => {
+          const renamed = await tx.sku.update({ where: { id: linked.id }, data: { sku: code } });
+          await recordAudit(tx, {
+            actorUserId: null,
+            action: 'sku.renamed_in_shopify',
+            entityType: 'sku',
+            entityId: linked.id,
+            before: { sku: linked.sku },
+            after: { sku: code, shopifyVariantId: v.id },
+          });
+          return renamed;
+        });
+        result.renamed = (result.renamed ?? 0) + 1;
+      }
+    }
     if (ours) {
       // Shopify is where the merchant sets prices; the automatic sync keeps ours in step.
       const price = moneyToPiastres(v.price);
@@ -924,10 +948,11 @@ export class ShopifySetupService {
         result.alreadyLinked++;
         return;
       }
-      // A variant id belongs to one product; free it if an older product held it.
+      // A variant belongs to one product; an older product holding it lets go of the whole
+      // link, so its stock is never pushed to the same Shopify item as this one.
       await this.prisma.sku.updateMany({
         where: { shopifyVariantId: v.id, id: { not: ours.id } },
-        data: { shopifyVariantId: null },
+        data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
       });
       await this.prisma.sku.update({ where: { id: ours.id }, data: links });
       result.linked++;
@@ -944,7 +969,7 @@ export class ShopifySetupService {
       : null;
     await this.prisma.sku.updateMany({
       where: { shopifyVariantId: v.id },
-      data: { shopifyVariantId: null },
+      data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
     });
     await this.prisma.sku.create({
       data: {

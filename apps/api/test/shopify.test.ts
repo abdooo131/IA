@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import {
   openToken,
@@ -10,9 +10,10 @@ import {
   verifyProxySignature,
   verifyQueryHmac,
 } from '../src/shopify/security';
-import { moneyToPiastres } from '../src/shopify/shopify-admin';
+import { isRepeatable, moneyToPiastres } from '../src/shopify/shopify-admin';
 import { ShopDataService } from '../src/shopify/shop-data.service';
 import { ShopifyService } from '../src/shopify/shopify.service';
+import { ShopifySyncService } from '../src/shopify/shopify-sync.service';
 import { ShopifyJobsService } from '../src/shopify/shopify-jobs.service';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
 import { ShopifySetupService } from '../src/shopify/shopify-setup.service';
@@ -153,6 +154,8 @@ describe('shopify app', () => {
     fake.variants = [];
     fake.fulfillmentOrders = [];
     fake.fulfillments = [];
+    fake.failNext.clear();
+    fake.refusedItems.clear();
     fake.inventory.clear();
     fake.idempotencyKeys = [];
     fake.carrierServices = [];
@@ -1505,10 +1508,33 @@ describe('shopify app', () => {
       (await prisma.sku.findFirstOrThrow({ where: { merchantId, sku: 'EC-NEW-1' } })).pricePiastres,
     ).toBe(19950);
 
+    // The SKU is renamed in Shopify: our product (with its stock) takes the new code and keeps
+    // the link, instead of a second empty product being made.
+    const renamedProduct = product('199.50');
+    renamedProduct.variants[0]!.sku = 'EC-NEW-2';
+    const skus = await prisma.sku.count();
+    await webhook('products/update', renamedProduct).expect(200);
+    expect(await prisma.sku.count()).toBe(skus);
+    expect(await prisma.sku.findUniqueOrThrow({ where: { id: added.id } })).toMatchObject({
+      sku: 'EC-NEW-2',
+      shopifyVariantId: 'gid://shopify/ProductVariant/8801',
+      shopifyInventoryItemId: 'gid://shopify/InventoryItem/5501',
+    });
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'sku.renamed_in_shopify', entityId: added.id },
+      }),
+    ).toBe(1);
+    // A line naming the variant finds that product even under an old code.
+    const shopify = app.get(ShopifyService);
+    expect(
+      (await shopify.findSku(merchantId, 'gid://shopify/ProductVariant/8801', 'EC-001'))?.id,
+    ).toBe(added.id);
+
     // Deleted in Shopify: our products stay, without the link.
     await webhook('products/delete', { id: 777 }).expect(200);
     const after = await prisma.sku.findMany({
-      where: { merchantId, sku: { in: ['EC-NEW-1', 'EC-001'] } },
+      where: { merchantId, sku: { in: ['EC-NEW-2', 'EC-001'] } },
     });
     expect(after.map((s) => s.shopifyVariantId)).toEqual([null, null]);
   });
@@ -1708,5 +1734,363 @@ describe('shopify app', () => {
       message: 'Not a 60 minute order; ship it normally',
     });
     expect(await prisma.order.count({ where: { shopifyFulfillmentOrderId: fo.id } })).toBe(0);
+  });
+
+  // ─── sync fixes (review step 3) ──────────────────────────────────────────────
+
+  /** A 60 minute request at New Cairo for EC-001, as Shopify sends it. */
+  const ask = (name: string, quantity: number) =>
+    fake.addRequest({
+      name,
+      locationId: '',
+      lines: [
+        {
+          id: `li-${name}`,
+          sku: 'EC-001',
+          variantId: fake.variants[0]!.id,
+          quantity,
+          price: '325.00',
+        },
+      ],
+      outstanding: '0.00',
+      shipping: '45.00',
+      address: { name: 'S', phone: '01012345678', address1: 'x', city: 'New Cairo', ...NEW_CAIRO },
+    });
+  const reservedAtNcr = async () =>
+    (
+      await prisma.stockLevel.findFirstOrThrow({
+        where: { darkStoreId: stores.get('NCR'), sku: { sku: 'EC-001' } },
+      })
+    ).reserved;
+  /** Makes every waiting outbox call due now. */
+  const dueNow = () =>
+    prisma.shopifyOutbox.updateMany({
+      where: { doneAt: null },
+      data: { nextAttemptAt: new Date(Date.now() - 1000) },
+    });
+
+  it('runs the store data import on its own loop, so a long export never holds up orders', async () => {
+    const { shop } = await install();
+    const data = app.get(ShopDataService);
+    let finish: () => void = () => undefined;
+    const tick = vi
+      .spyOn(data, 'tick')
+      .mockImplementation(() => new Promise((resolve) => (finish = () => resolve(null))));
+    try {
+      const importing = jobs.runData();
+      const fo = ask('#2001', 1);
+      fo.locationId = await locationOf('NCR');
+      // The order sync finishes while the import is still downloading.
+      await jobs.runShop(shop);
+      expect(await prisma.order.count({ where: { shopifyFulfillmentOrderId: fo.id } })).toBe(1);
+      expect(tick).toHaveBeenCalledTimes(1);
+      finish();
+      await importing;
+    } finally {
+      tick.mockRestore();
+    }
+  });
+
+  it('keeps pushing stock when Shopify refuses one product, and tries that one later', async () => {
+    const { shop } = await install();
+    await jobs.runShop(shop);
+    const ncr = await prisma.shopifyLocation.findFirstOrThrow({
+      where: { darkStoreId: stores.get('NCR') },
+    });
+    const [ec001, ec019] = fake.variants;
+    const synced = await prisma.shopifyStockSync.findMany({ where: { locationId: ncr.id } });
+    expect(synced.length).toBeGreaterThanOrEqual(2);
+    // Both changed since the last push; EC-019's variant was deleted in Shopify.
+    await prisma.shopifyStockSync.updateMany({
+      where: { locationId: ncr.id },
+      data: { lastPushedQty: 99_999 },
+    });
+    fake.inventory.clear();
+    fake.refusedItems.add(ec019!.inventoryItemId);
+    const sync = app.get(ShopifySyncService);
+    await sync.pushStock(shop);
+    const level = await prisma.stockLevel.findFirstOrThrow({
+      where: { darkStoreId: stores.get('NCR'), sku: { sku: 'EC-001' } },
+    });
+    expect(fake.inventory.get(`${ec001!.inventoryItemId}|${ncr.locationId}`)).toBe(
+      level.onHand - level.reserved,
+    );
+    const refused = await prisma.shopifyStockSync.findFirstOrThrow({
+      where: { locationId: ncr.id, sku: { sku: 'EC-019' } },
+    });
+    expect(refused).toMatchObject({ failures: 1, lastPushedQty: 99_999 });
+    expect(refused.retryAt!.getTime()).toBeGreaterThan(Date.now());
+    const alerts = { type: 'shopify_sync_failed', darkStoreId: stores.get('NCR') };
+    expect(await prisma.alert.count({ where: alerts })).toBe(1);
+
+    // It waits for its turn; nothing new is logged or alerted meanwhile.
+    const calls = fake.calls.length;
+    await sync.pushStock(shop);
+    expect(fake.calls.length).toBe(calls);
+    // A later failure counts up quietly; once Shopify takes it, the count starts again.
+    await sync.pushStock(shop, new Date(Date.now() + 60_000));
+    expect(
+      (
+        await prisma.shopifyStockSync.findFirstOrThrow({
+          where: { locationId: ncr.id, sku: { sku: 'EC-019' } },
+        })
+      ).failures,
+    ).toBe(2);
+    expect(await prisma.alert.count({ where: alerts })).toBe(1);
+    fake.refusedItems.clear();
+    await sync.pushStock(shop, new Date(Date.now() + 3 * 3_600_000));
+    expect(
+      await prisma.shopifyStockSync.findFirstOrThrow({
+        where: { locationId: ncr.id, sku: { sku: 'EC-019' } },
+      }),
+    ).toMatchObject({ failures: 0, retryAt: null, lastError: null });
+    expect(fake.inventory.has(`${ec019!.inventoryItemId}|${ncr.locationId}`)).toBe(true);
+  });
+
+  it('never repeats a Shopify change whose answer was lost', async () => {
+    expect(isRepeatable('query X { shop { id } }')).toBe(true);
+    expect(isRepeatable('\n  mutation A($k: String!) { a @idempotent(key: $k) { id } }')).toBe(
+      true,
+    );
+    expect(isRepeatable('\n  mutation FulfillmentCreate { fulfillmentCreate { id } }')).toBe(false);
+
+    const { shop } = await install();
+    const level = await prisma.stockLevel.findFirstOrThrow({
+      where: { darkStoreId: stores.get('NCR'), sku: { sku: 'EC-001' } },
+    });
+    const available = level.onHand - level.reserved;
+    const fo = ask('#2002', available + 2);
+    fo.locationId = await locationOf('NCR');
+    await jobs.runShop(shop);
+    const order = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: fo.id },
+      include: { items: true },
+    });
+    // The order edit went through in Shopify but its answer never came back.
+    fake.failNext.set('OrderEditCommit', 'lost');
+    await jobs.runShop(shop);
+    expect(fake.orderQuantities.get(`li-#2002`)).toBe(available);
+    await dueNow();
+    await jobs.runShop(shop);
+    // Taken off once, not twice.
+    expect(fake.orderQuantities.get(`li-#2002`)).toBe(available);
+    expect(
+      await prisma.shopifyOutbox.count({ where: { kind: 'cancel_items', doneAt: null } }),
+    ).toBe(0);
+
+    // The fulfillment is created, its answer lost: the next try adopts it.
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    const base = `/stores/${stores.get('NCR')}/orders/${order.id}`;
+    await staff.post(`${base}/accept`).expect(201);
+    await staff
+      .post(`${base}/pick`)
+      .send({ skuId: order.items[0]!.skuId, quantity: available, idempotencyKey: randomUUID() })
+      .expect(201);
+    const photo = await staff
+      .post('/photos?kind=pack')
+      .set('content-type', 'image/jpeg')
+      .send(JPEG)
+      .expect(201);
+    await staff.post(`${base}/pack`).send({ photoId: photo.body.id }).expect(201);
+    await staff.post(`${base}/handover`).send({ badgeCode: 'RDR-0001' }).expect(201);
+    fake.failNext.set('FulfillmentCreate', 'lost');
+    await jobs.runShop(shop);
+    expect(fake.fulfillments).toHaveLength(1);
+    expect(
+      (await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).shopifyFulfillmentId,
+    ).toBeNull();
+    await dueNow();
+    await jobs.runShop(shop);
+    expect(fake.fulfillments).toHaveLength(1);
+    expect(
+      (await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).shopifyFulfillmentId,
+    ).toBe(fake.fulfillments[0]!.id);
+
+    // The delivered event is sent once even when its answer is lost.
+    const fresh = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    const rider = await agent('rider.newcairo@shiplynow.local');
+    const deliveries = await rider.get('/rider/deliveries').expect(200);
+    await rider
+      .post(`/rider/deliveries/${deliveries.body[0].id}/complete`)
+      .send({ otp: fresh.deliveryOtp, codCollectedPiastres: fresh.codAmountPiastres })
+      .expect(201);
+    fake.failNext.set('FulfillmentEventCreate', 'lost');
+    await jobs.runShop(shop);
+    await dueNow();
+    await jobs.runShop(shop);
+    expect(fake.fulfillments[0]!.events).toEqual(['DELIVERED']);
+    expect(await prisma.shopifyOutbox.count({ where: { doneAt: null } })).toBe(0);
+  });
+
+  it('turns a request Shopify sends again after a refusal into a new order', async () => {
+    const { shop } = await install();
+    const ncr = stores.get('NCR')!;
+    // Nothing can be sold at New Cairo: the order goes to standard and the request is refused.
+    await prisma.setting.create({
+      data: { key: 'stock.buffer_units', scope: ncr, value: 99_999 },
+    });
+    const fo = ask('#2003', 1);
+    fo.locationId = await locationOf('NCR');
+    await jobs.runShop(shop);
+    const first = await prisma.order.findFirstOrThrow({
+      where: { customerNote: { contains: '#2003' } },
+    });
+    expect(first).toMatchObject({ status: 'moved_to_standard', shopifyFulfillmentOrderId: null });
+    expect(fo.rejected?.reason).toBe('INVENTORY_OUT_OF_STOCK');
+
+    // The merchant restocks and asks again for the same fulfillment order.
+    await prisma.setting.delete({
+      where: { key_scope: { key: 'stock.buffer_units', scope: ncr } },
+    });
+    fo.assignment = 'FULFILLMENT_REQUESTED';
+    delete fo.rejected;
+    await jobs.runShop(shop);
+    const second = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: fo.id },
+    });
+    expect(second.id).not.toBe(first.id);
+    expect(second.status).toBe('new');
+    expect(fo.assignment).toBe('FULFILLMENT_ACCEPTED');
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'order.shopify_request_released', entityId: first.id },
+      }),
+    ).toBe(1);
+  });
+
+  it('hands the fulfillment order back when we cancel a Shopify order, and takes a new request', async () => {
+    const { shop } = await install();
+    const before = await reservedAtNcr();
+    const fo = ask('#2004', 1);
+    fo.locationId = await locationOf('NCR');
+    await jobs.runShop(shop);
+    const order = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: fo.id },
+    });
+    expect(order.shopifyAcceptedAt).not.toBeNull();
+    // Staff cancel it: we never cancel the Shopify order, the fulfillment order is closed.
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    await staff
+      .post(`/stores/${stores.get('NCR')}/orders/${order.id}/cancel`)
+      .send({ reason: 'customer_request' })
+      .expect(201);
+    expect(await reservedAtNcr()).toBe(before);
+    expect(await prisma.shopifyOutbox.count({ where: { kind: 'close', orderId: order.id } })).toBe(
+      1,
+    );
+    await jobs.runShop(shop);
+    expect(fo.closed).toBeDefined();
+    expect(await prisma.shopifyOutbox.count({ where: { kind: 'close', doneAt: null } })).toBe(0);
+    // Sending it again changes nothing.
+    await prisma.shopifyOutbox.updateMany({
+      where: { kind: 'close' },
+      data: { doneAt: null, nextAttemptAt: new Date(Date.now() - 1000) },
+    });
+    await jobs.runShop(shop);
+    expect(await prisma.shopifyOutbox.count({ where: { kind: 'close', doneAt: null } })).toBe(0);
+
+    // The merchant requests fulfillment again: a new order, not the cancelled one.
+    fo.assignment = 'FULFILLMENT_REQUESTED';
+    delete fo.closed;
+    await jobs.runShop(shop);
+    const again = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: fo.id },
+    });
+    expect(again.id).not.toBe(order.id);
+    expect(again.status).toBe('new');
+
+    // A cancellation Shopify asked for is not sent back to Shopify.
+    fo.assignment = 'CANCELLATION_REQUESTED';
+    await jobs.runShop(shop);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: again.id } })).status).toBe(
+      'cancelled',
+    );
+    expect(await prisma.shopifyOutbox.count({ where: { kind: 'close', orderId: again.id } })).toBe(
+      0,
+    );
+  });
+
+  it('cancels our order when Shopify will not let us accept it, and settles a lost accept', async () => {
+    const { shop } = await install();
+    const before = await reservedAtNcr();
+    const refused = ask('#2005', 1);
+    refused.locationId = await locationOf('NCR');
+    fake.failNext.set('AcceptFulfillmentRequest', 'refuse');
+    await jobs.runShop(shop);
+    const order = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: refused.id },
+    });
+    expect(order).toMatchObject({ status: 'cancelled', closedReason: 'shopify_accept_failed' });
+    expect(await reservedAtNcr()).toBe(before);
+    expect(await prisma.shopifyOutbox.count({ where: { orderId: order.id } })).toBe(0);
+    expect(
+      await prisma.alert.count({ where: { type: 'shopify_rejected', orderId: order.id } }),
+    ).toBe(1);
+
+    // Accepted in Shopify, but the answer was lost: the request is no longer open, so the
+    // order is settled from Shopify's side and the units it lacked still come off.
+    const level = await prisma.stockLevel.findFirstOrThrow({
+      where: { darkStoreId: stores.get('NCR'), sku: { sku: 'EC-001' } },
+    });
+    const lost = ask('#2006', level.onHand - level.reserved + 1);
+    lost.locationId = await locationOf('NCR');
+    fake.failNext.set('AcceptFulfillmentRequest', 'lost');
+    await jobs.runShop(shop);
+    const taken = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: lost.id },
+    });
+    expect(lost.assignment).toBe('FULFILLMENT_ACCEPTED');
+    expect(taken).toMatchObject({ status: 'new', shopifyAcceptedAt: null });
+    expect(await prisma.shopifyOutbox.count({ where: { orderId: taken.id } })).toBe(0);
+    // The refused request was still open in Shopify: it is handed back, never a second order.
+    expect(refused.rejected?.reason).toBe('OTHER');
+    expect(await prisma.order.count({ where: { customerNote: { contains: '#2005' } } })).toBe(1);
+    await prisma.order.update({
+      where: { id: taken.id },
+      data: { createdAt: new Date(Date.now() - 5 * 60_000) },
+    });
+    await jobs.runShop(shop);
+    expect(
+      (await prisma.order.findUniqueOrThrow({ where: { id: taken.id } })).shopifyAcceptedAt,
+    ).not.toBeNull();
+    expect(
+      await prisma.shopifyOutbox.count({ where: { orderId: taken.id, kind: 'cancel_items' } }),
+    ).toBe(1);
+  });
+
+  it('deletes old Shopify logs and finished calls once a day', async () => {
+    const { shop } = await install();
+    const old = new Date(Date.now() - 90 * 24 * 3_600_000);
+    await prisma.shopifyLog.create({
+      data: { shopId: shop.id, direction: 'in', kind: 'rates', ok: true, createdAt: old },
+    });
+    const row = (key: string, done: Date | null, attempts = 0) => ({
+      shopId: shop.id,
+      orderId: null,
+      kind: 'fulfill',
+      idempotencyKey: key,
+      attempts,
+      doneAt: done,
+      createdAt: old,
+    });
+    await prisma.shopifyOutbox.createMany({
+      data: [
+        row('prune:done-old', old),
+        row('prune:dead-old', null, 10),
+        row('prune:waiting', null, 2),
+        row('prune:done-recent', new Date()),
+      ],
+    });
+    const logsBefore = await prisma.shopifyLog.count();
+    const pruned = await jobs.prune(new Date(Date.now() + 25 * 3_600_000));
+    expect(pruned).toEqual({ logs: 1, outbox: 2 });
+    expect(await prisma.shopifyLog.count()).toBe(logsBefore - 1);
+    expect(
+      (await prisma.shopifyOutbox.findMany({ where: { idempotencyKey: { startsWith: 'prune:' } } }))
+        .map((r) => r.idempotencyKey)
+        .sort(),
+    ).toEqual(['prune:done-recent', 'prune:waiting']);
+    // Once a day: a second call the same day does nothing.
+    expect(await jobs.prune(new Date(Date.now() + 26 * 3_600_000))).toBeNull();
   });
 });

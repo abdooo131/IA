@@ -4,6 +4,8 @@ import {
   createOrder,
   DomainError,
   queueShopify,
+  releaseFulfillmentOrder,
+  SHOPIFY_OUTBOX_MAX_ATTEMPTS,
   type ShopifyLocation,
   type ShopifyShop,
 } from '@shiplynow/db';
@@ -14,10 +16,11 @@ import {
   ACCEPT_CANCELLATION_REQUEST,
   ACCEPT_FULFILLMENT_REQUEST,
   ASSIGNED_FULFILLMENT_ORDERS,
+  FULFILLMENT_ORDER_STATE,
   REJECT_CANCELLATION_REQUEST,
   REJECT_FULFILLMENT_REQUEST,
 } from './graphql';
-import { assertNoUserErrors, moneyToPiastres } from './shopify-admin';
+import { assertNoUserErrors, moneyToPiastres, ShopifyApiError } from './shopify-admin';
 import { RATE_CODE_PREFIX } from './shopify-rates.service';
 import { ShopifyService } from './shopify.service';
 
@@ -83,6 +86,8 @@ type Outcome =
 
 /** Orders waiting at the store can still be cancelled; once a rider has them it is too late. */
 const CANCELLABLE = ['new', 'accepted', 'picking', 'packed'];
+/** Request states that mean Shopify has the fulfillment order accepted by us. */
+const ACCEPTED = ['ACCEPTED', 'CANCELLATION_REQUESTED', 'CANCELLATION_REJECTED'];
 /** The system user for actions Shopify triggers */
 const SYSTEM = null;
 
@@ -174,11 +179,47 @@ export class ShopifyOrdersService {
     const existing = await this.prisma.order.findUnique({
       where: { shopifyFulfillmentOrderId: fo.id },
     });
-    if (existing) {
+    if (existing?.status === 'moved_to_standard') {
+      // Our refusal never reached Shopify (once it does, the order lets go of the request).
+      await this.reject(shop, fo, 'INVENTORY_OUT_OF_STOCK', 'Not in stock at the dark store');
+      await releaseFulfillmentOrder(this.prisma, {
+        orderId: existing.id,
+        fulfillmentOrderId: fo.id,
+        why: 'refused_no_stock',
+      });
+      return { kind: 'already', orderId: existing.id };
+    }
+    if (existing?.status === 'cancelled') {
+      // The outbox is still handing it back to the merchant: that answer comes first.
+      const closing = await this.prisma.shopifyOutbox.count({
+        where: {
+          orderId: existing.id,
+          kind: 'close',
+          doneAt: null,
+          attempts: { lt: SHOPIFY_OUTBOX_MAX_ATTEMPTS },
+        },
+      });
+      if (closing) return { kind: 'skipped', reason: 'closing' };
+      if (!existing.shopifyAcceptedAt) {
+        // Never accepted (Shopify would not let us, or we cancelled first): this is still the
+        // first request, handed back to the merchant. Once Shopify hears it, the order lets go.
+        await this.reject(shop, fo, 'OTHER', 'Cancelled at the dark store; ship it normally');
+        await releaseFulfillmentOrder(this.prisma, {
+          orderId: existing.id,
+          fulfillmentOrderId: fo.id,
+          why: 'refused_cancelled',
+        });
+        return { kind: 'already', orderId: existing.id };
+      }
+      // The merchant asked again for an order we cancelled: a new request, so a new order.
+      await releaseFulfillmentOrder(this.prisma, {
+        orderId: existing.id,
+        fulfillmentOrderId: fo.id,
+        why: 'requested_again',
+      });
+    } else if (existing) {
       // We already took it; Shopify did not hear our answer, so answer again.
-      if (existing.status === 'moved_to_standard')
-        await this.reject(shop, fo, 'INVENTORY_OUT_OF_STOCK', 'Not in stock at the dark store');
-      else await this.accept(shop, fo, `Shiply Now order ${existing.number}`);
+      await this.acceptOrHandBack(shop, fo, existing.id, `Shiply Now order ${existing.number}`);
       return { kind: 'already', orderId: existing.id };
     }
 
@@ -187,16 +228,7 @@ export class ShopifyOrdersService {
     for (const li of fo.lineItems.nodes) {
       if (li.remainingQuantity <= 0) continue;
       const code = (li.sku ?? li.lineItem.sku ?? '').trim();
-      const sku = await this.prisma.sku.findFirst({
-        where: {
-          merchantId: shop.merchantId,
-          isActive: true,
-          OR: [
-            ...(li.variant ? [{ shopifyVariantId: li.variant.id }] : []),
-            ...(code ? [{ sku: code }] : []),
-          ],
-        },
-      });
+      const sku = await this.shopify.findSku(shop.merchantId, li.variant?.id ?? null, code);
       if (!sku) {
         unknown.push(code || li.id);
         continue;
@@ -381,29 +413,25 @@ export class ShopifyOrdersService {
 
     if (created.status === 'moved_to_standard') {
       await this.reject(shop, fo, 'INVENTORY_OUT_OF_STOCK', 'Not in stock at the dark store');
+      // Shopify heard it: a request sent again for this fulfillment order is a new one.
+      await releaseFulfillmentOrder(this.prisma, {
+        orderId: created.id,
+        fulfillmentOrderId: fo.id,
+        why: 'refused_no_stock',
+      });
       return { kind: 'rejected', reason: 'no_stock' };
     }
-    await this.accept(shop, fo, `Shiply Now order ${created.number}`);
+    const taken = await this.acceptOrHandBack(
+      shop,
+      fo,
+      created.id,
+      `Shiply Now order ${created.number}`,
+    );
+    if (!taken) return { kind: 'rejected', reason: 'accept_failed' };
 
     const order = await this.prisma.order.findUniqueOrThrow({ where: { id: created.id } });
-    if (created.cancelled.length > 0) {
-      await this.prisma.$transaction((tx) =>
-        queueShopify(tx, order, 'cancel_items', `order:${order.id}:intake_cancel`, {
-          lines: created.cancelled,
-        }),
-      );
-    }
-    if (queuedUntil) {
-      await this.prisma.orderEvent.create({
-        data: {
-          orderId: order.id,
-          type: 'queued_until_open',
-          data: { until: queuedUntil.toISOString() },
-        },
-      });
-    } else if (store?.atCapacity) {
+    if (!queuedUntil && store?.atCapacity)
       await this.alert(location.darkStoreId, 'over_capacity', { order: order.number }, order.id);
-    }
     await this.shopify.record(shop.id, {
       direction: 'in',
       kind: 'fulfillment_request',
@@ -428,6 +456,7 @@ export class ShopifyOrdersService {
       await cancelOrder(this.prisma, {
         orderId: order.id,
         reason: 'shopify_cancellation',
+        tellShopify: false,
         actorUserId: SYSTEM,
       }).catch((error) => {
         if (!(error instanceof DomainError)) throw error;
@@ -461,6 +490,134 @@ export class ShopifyOrdersService {
       message: `${fo.order.name} could not be cancelled: ${after.status}`,
     });
     return 'rejected';
+  }
+
+  /**
+   * Accepts the request for an order we created. When Shopify answers no (the merchant
+   * withdrew the request or cancelled the order meanwhile), our order is cancelled at once so
+   * its stock is free and nobody picks it. When the answer is lost, the order waits: the next
+   * sweep asks again while the request is still open, and reconcileAccepts looks at it later.
+   * True when Shopify has it accepted.
+   */
+  private async acceptOrHandBack(
+    shop: ShopifyShop,
+    fo: FulfillmentOrder,
+    orderId: string,
+    message: string,
+  ) {
+    try {
+      await this.accept(shop, fo, message);
+    } catch (error) {
+      if (!(error instanceof ShopifyApiError) || error.retryable) throw error;
+      // Answered no; it may still be ours if an earlier accept went through unheard.
+      const state = await this.fulfillmentOrderState(shop, fo.id);
+      if (!state || !ACCEPTED.includes(state.requestStatus)) {
+        await this.handBack(shop, orderId, fo.order.name, error.message);
+        return false;
+      }
+    }
+    await this.afterAccept(orderId);
+    return true;
+  }
+
+  /**
+   * What follows Shopify's acceptance, in one transaction and safe to run again: the time is
+   * kept, units the store lacked come off the Shopify order (outbox, one key) and an order
+   * waiting for the store to open says so on its timeline.
+   */
+  private afterAccept(orderId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: { events: { where: { type: { in: ['items_cancelled', 'queued_until_open'] } } } },
+      });
+      if (!order.shopifyAcceptedAt)
+        await tx.order.update({ where: { id: order.id }, data: { shopifyAcceptedAt: new Date() } });
+      const intake = order.events.find(
+        (e) =>
+          e.type === 'items_cancelled' && (e.data as { reason?: string })?.reason === 'no_stock',
+      );
+      if (intake)
+        await queueShopify(tx, order, 'cancel_items', `order:${order.id}:intake_cancel`, {
+          lines: (intake.data as { lines: { sku: string; quantity: number }[] }).lines,
+        });
+      if (order.slaStartsAt && !order.events.some((e) => e.type === 'queued_until_open'))
+        await tx.orderEvent.create({
+          data: {
+            orderId: order.id,
+            type: 'queued_until_open',
+            data: { until: order.slaStartsAt.toISOString() },
+          },
+        });
+    });
+  }
+
+  /** Shopify did not let us take the order: ours is cancelled (stock freed), admin is told. */
+  private async handBack(shop: ShopifyShop, orderId: string, name: string, why: string) {
+    const order = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    if (CANCELLABLE.includes(order.status))
+      await cancelOrder(this.prisma, {
+        orderId,
+        reason: 'shopify_accept_failed',
+        actorUserId: SYSTEM,
+        tellShopify: false,
+      }).catch((error) => {
+        if (!(error instanceof DomainError)) throw error;
+      });
+    await this.alert(
+      order.darkStoreId,
+      'shopify_rejected',
+      { order: name, reason: `accept_failed: ${why}`.slice(0, 300) },
+      orderId,
+    );
+    await this.shopify.record(shop.id, {
+      direction: 'in',
+      kind: 'fulfillment_request',
+      ok: false,
+      message: `${name}: accept failed, ${order.number} cancelled: ${why}`,
+    });
+  }
+
+  /**
+   * Orders whose acceptance we never heard back about (a lost answer, a restart between the
+   * order and the call) and whose request is no longer open: Shopify has them accepted (the
+   * follow up steps run) or not (ours is cancelled). Run after each sweep.
+   */
+  async reconcileAccepts(shop: ShopifyShop, now: Date = new Date()) {
+    const waiting = await this.prisma.order.findMany({
+      where: {
+        merchantId: shop.merchantId,
+        source: 'shopify',
+        shopifyAcceptedAt: null,
+        shopifyFulfillmentOrderId: { not: null },
+        status: { in: ['new', 'accepted', 'picking', 'packed'] },
+        createdAt: { lt: new Date(now.getTime() - 60_000) },
+      },
+      take: 20,
+    });
+    let settled = 0;
+    for (const order of waiting) {
+      const state = await this.fulfillmentOrderState(shop, order.shopifyFulfillmentOrderId!);
+      if (state?.requestStatus === 'SUBMITTED') continue; // the sweep answers it
+      if (state && (ACCEPTED.includes(state.requestStatus) || state.status === 'IN_PROGRESS'))
+        await this.afterAccept(order.id);
+      else
+        await this.handBack(
+          shop,
+          order.id,
+          order.number,
+          `request ${state?.requestStatus ?? 'gone'}`,
+        );
+      settled++;
+    }
+    return { settled };
+  }
+
+  private async fulfillmentOrderState(shop: ShopifyShop, id: string) {
+    const data = await this.shopify.call<{
+      fulfillmentOrder: { id: string; status: string; requestStatus: string } | null;
+    }>(shop, FULFILLMENT_ORDER_STATE, { id });
+    return data.fulfillmentOrder;
   }
 
   private async accept(shop: ShopifyShop, fo: FulfillmentOrder, message: string) {

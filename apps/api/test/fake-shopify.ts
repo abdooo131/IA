@@ -1,4 +1,4 @@
-import { ShopifyAdmin } from '../src/shopify/shopify-admin';
+import { ShopifyAdmin, ShopifyApiError } from '../src/shopify/shopify-admin';
 
 type Line = { id: string; sku: string; variantId: string; quantity: number; price: string };
 
@@ -21,6 +21,8 @@ export interface FakeFulfillmentOrder {
     longitude: number | null;
   };
   rejected?: { reason: string; message: string };
+  /** We closed it as incomplete (fulfillmentOrderClose) after cancelling our order */
+  closed?: { message: string };
   /** The shipping rate code the customer chose; by default our 60 minute rate from that store. */
   shippingCode?: string | null;
   /** Cart attributes (the widget's _shiplynow_zone, _shiplynow_area, _shiplynow_pin) */
@@ -52,6 +54,8 @@ export class FakeShopify extends ShopifyAdmin {
     tracking: string;
     trackingUrl?: string;
     events: string[];
+    /** When each event happened, as sent (happenedAt) */
+    eventsAt?: (string | null)[];
   }[] = [];
   orderQuantities = new Map<string, number>();
   carrierServices: { id: string; name: string; callbackUrl: string }[] = [];
@@ -82,6 +86,13 @@ export class FakeShopify extends ShopifyAdmin {
   >();
   webhooks: { id: string; topic: string; uri: string }[] = [];
   calls: string[] = [];
+  /**
+   * One time failures by operation name: "refuse" answers user errors and changes nothing;
+   * "lost" applies the operation and then fails like a timeout (the answer never arrives).
+   */
+  failNext = new Map<string, 'refuse' | 'lost'>();
+  /** Inventory items Shopify refuses (deleted variant): any call naming one changes nothing. */
+  refusedItems = new Set<string>();
   /** The merchant's store for data exports, as Shopify would export it (JSON Lines rows). */
   store = {
     products: [] as object[],
@@ -219,6 +230,29 @@ export class FakeShopify extends ShopifyAdmin {
     if (token !== 'shpat_test_token') throw new Error('bad token');
     const name = /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? 'unknown';
     this.calls.push(name);
+    const failure = this.failNext.get(name);
+    if (failure) {
+      this.failNext.delete(name);
+      if (failure === 'refuse') {
+        const field = name.charAt(0).toLowerCase() + name.slice(1);
+        const root =
+          {
+            AcceptFulfillmentRequest: 'fulfillmentOrderAcceptFulfillmentRequest',
+            RejectFulfillmentRequest: 'fulfillmentOrderRejectFulfillmentRequest',
+            FulfillmentOrderClose: 'fulfillmentOrderClose',
+          }[name] ?? field;
+        return { [root]: { userErrors: [{ message: `${name} refused` }] } } as T;
+      }
+      await this.graphql(_shop, token, query, v);
+      throw new ShopifyApiError('network: The operation was aborted due to timeout', true);
+    }
+    const refused = JSON.stringify(v).match(/gid:\/\/shopify\/InventoryItem\/\d+/g) ?? [];
+    if (refused.some((id) => this.refusedItems.has(id))) {
+      const root = name === 'InventoryActivate' ? 'inventoryActivate' : 'inventorySetQuantities';
+      return {
+        [root]: { userErrors: [{ message: 'The specified inventory item could not be found.' }] },
+      } as T;
+    }
     const ok = (data: unknown) => data as T;
     const errors = { userErrors: [] as { message: string }[] };
     const fo = (id: unknown) => this.fulfillmentOrders.find((f) => f.id === id)!;
@@ -404,6 +438,61 @@ export class FakeShopify extends ShopifyAdmin {
           },
         });
       }
+      case 'FulfillmentOrderState': {
+        const f = this.fulfillmentOrders.find((x) => x.id === v.id);
+        if (!f) return ok({ fulfillmentOrder: null });
+        const [status, requestStatus] = f.closed
+          ? ['INCOMPLETE', 'CLOSED']
+          : f.rejected
+            ? ['OPEN', 'REJECTED']
+            : {
+                FULFILLMENT_REQUESTED: ['OPEN', 'SUBMITTED'],
+                FULFILLMENT_ACCEPTED: ['IN_PROGRESS', 'ACCEPTED'],
+                CANCELLATION_REQUESTED: ['IN_PROGRESS', 'CANCELLATION_REQUESTED'],
+                CLOSED: ['CANCELLED', 'CANCELLATION_ACCEPTED'],
+              }[f.assignment];
+        return ok({
+          fulfillmentOrder: {
+            id: f.id,
+            status,
+            requestStatus,
+            fulfillments: {
+              nodes: this.fulfillments
+                .filter((x) => x.fulfillmentOrderId === f.id)
+                .map((x) => ({ id: x.id, status: 'SUCCESS' })),
+            },
+          },
+        });
+      }
+      case 'FulfillmentEvents': {
+        const f = this.fulfillments.find((x) => x.id === v.id);
+        return ok({
+          fulfillment: f
+            ? {
+                id: f.id,
+                events: {
+                  nodes: f.events.map((status, i) => ({
+                    status,
+                    happenedAt: f.eventsAt?.[i] ?? null,
+                  })),
+                },
+              }
+            : null,
+        });
+      }
+      case 'FulfillmentOrderClose': {
+        const f = fo(v.id);
+        if (f.assignment !== 'FULFILLMENT_ACCEPTED' || f.closed)
+          return ok({
+            fulfillmentOrderClose: {
+              fulfillmentOrder: null,
+              userErrors: [{ message: 'Fulfillment order is not in progress' }],
+            },
+          });
+        f.assignment = 'CLOSED';
+        f.closed = { message: String(v.message) };
+        return ok({ fulfillmentOrderClose: { fulfillmentOrder: { id: f.id }, ...errors } });
+      }
       case 'AcceptFulfillmentRequest':
         fo(v.id).assignment = 'FULFILLMENT_ACCEPTED';
         return ok({
@@ -443,8 +532,14 @@ export class FakeShopify extends ShopifyAdmin {
         });
       }
       case 'FulfillmentEventCreate': {
-        const input = v.fulfillmentEvent as { fulfillmentId: string; status: string };
-        this.fulfillments.find((f) => f.id === input.fulfillmentId)!.events.push(input.status);
+        const input = v.fulfillmentEvent as {
+          fulfillmentId: string;
+          status: string;
+          happenedAt?: string;
+        };
+        const target = this.fulfillments.find((f) => f.id === input.fulfillmentId)!;
+        target.events.push(input.status);
+        (target.eventsAt ??= []).push(input.happenedAt ?? null);
         return ok({
           fulfillmentEventCreate: {
             fulfillmentEvent: { id: gid('FulfillmentEvent'), status: input.status },
