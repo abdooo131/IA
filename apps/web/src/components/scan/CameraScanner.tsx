@@ -3,6 +3,7 @@
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { useTranslations } from 'next-intl';
+import { openCamera } from '@/lib/camera';
 import { useEffect, useRef, useState } from 'react';
 
 type Problem = 'insecure' | 'denied' | 'notFound' | 'busy' | { other: string };
@@ -59,19 +60,26 @@ export default function CameraScanner({
       if (!window.isSecureContext) return setProblem('insecure');
       if (!navigator.mediaDevices?.getUserMedia) return setProblem('notFound');
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        });
+        // Closed while the camera was starting: openCamera switches that stream off.
+        const opened = await openCamera(
+          () =>
+            navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            }),
+          () => stopped || !video.current,
+        );
+        if (!opened) return;
+        stream = opened;
       } catch (error) {
+        if (stopped) return;
         return setProblem(problemOf(error));
       }
-      const el = video.current;
-      if (!el || stopped) return;
+      const el = video.current!;
       // iPhone Safari only plays inline, muted video without a user gesture.
       el.setAttribute('playsinline', 'true');
       el.muted = true;

@@ -14,6 +14,7 @@ const KNOWN_ERRORS = [
   'delivery_closed',
   'cod_required',
   'photo_required',
+  'photo_not_usable',
   'note_required',
   'no_access',
   'store_not_allowed',

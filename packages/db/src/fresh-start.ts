@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { DEMO_OFFICE } from './demo/data';
+import { holdsDemo, SAMPLE_MERCHANT_NAMES } from './startup-flags';
 
 type Tx = Prisma.TransactionClient;
 
@@ -31,7 +32,194 @@ const GUARDED_TABLES = [
   'payout_statements',
   'payout_proofs',
   'payout_check_marks',
+  'order_notes',
+  'packaging_movements',
+  'merchant_contract_version_products',
 ];
+
+/**
+ * Every table of the database, by what the fresh start does with it. A test compares this with
+ * the database, so a new table fails it until someone decides: activity is emptied (wiped),
+ * rows of the merchants and people who go are removed (partial), or setup stays (kept).
+ */
+export const FRESH_START_TABLES = {
+  wiped: [
+    'alerts',
+    'attendance_corrections',
+    'attendance_days',
+    'audit_log',
+    'bank_line_matches',
+    'bank_statement_lines',
+    'bank_statements',
+    'basata_deposits',
+    'basata_settlements',
+    'bills',
+    'bin_stock',
+    'books_lock',
+    'budgets',
+    'cash_deadline_runs',
+    'cash_handovers',
+    'cheques',
+    'crm_activities',
+    'crm_commission_lines',
+    'crm_commissions',
+    'crm_companies',
+    'crm_contacts',
+    'crm_deal_stage_history',
+    'crm_deals',
+    'crm_proposal_products',
+    'crm_proposal_tiers',
+    'crm_proposals',
+    'crm_targets',
+    'damage_reports',
+    'delivered_points',
+    'deliveries',
+    'document_reminders',
+    'email_outbox',
+    'employee_exits',
+    'expense_claims',
+    'finance_receipts',
+    'finance_requests',
+    'fixed_assets',
+    'forecast_drivers',
+    'forecast_overrides',
+    'forecasts',
+    'geo_suggestions',
+    'hire_draft_files',
+    'hire_drafts',
+    'inbound_manifest_lines',
+    'inbound_manifests',
+    'leave_adjustments',
+    'leave_request_days',
+    'leave_requests',
+    'ledger_entries',
+    'ledger_lines',
+    'loan_instalments',
+    'loans',
+    'merchant_payment_reminders',
+    'merchant_return_lines',
+    'merchant_returns',
+    'month_end_marks',
+    'notifications',
+    'order_events',
+    'order_items',
+    'order_notes',
+    'order_ratings',
+    'orders',
+    'packaging_levels',
+    'packaging_movements',
+    'payout_check_marks',
+    'payout_proofs',
+    'payout_statements',
+    'payouts',
+    'petty_cash_expenses',
+    'photos',
+    'prepayments',
+    'punches',
+    'purchase_order_lines',
+    'purchase_order_receipts',
+    'purchase_orders',
+    'push_sent',
+    'reassignments',
+    'record_activities',
+    'record_notes',
+    'recurring_entries',
+    'rider_cash_deductions',
+    'rider_freezes',
+    'rider_withdrawals',
+    'riders',
+    'roster_days',
+    'shopify_logs',
+    'shopify_outbox',
+    'site_leads',
+    'stock_count_lines',
+    'stock_counts',
+    'stock_levels',
+    'stock_movements',
+    'stock_targets',
+    'stock_unit_days',
+    'storage_days',
+    'suppliers',
+    'tax_invoice_lines',
+    'tax_invoices',
+    'ticket_messages',
+    'tickets',
+    'transfer_lines',
+    'transfers',
+    'user_setup_tokens',
+    'violation_suggestions',
+    'violations',
+  ],
+  partial: [
+    'customer_aliases',
+    'customers',
+    'employee_checklist_tasks',
+    'employee_checklists',
+    'employee_documents',
+    'employee_photos',
+    'employees',
+    'ledger_accounts',
+    'merchant_contract_files',
+    'merchant_contract_version_products',
+    'merchant_contract_version_tiers',
+    'merchant_contract_versions',
+    'merchant_contracts',
+    'merchants',
+    'notification_preferences',
+    'packaging_recipes',
+    'push_subscriptions',
+    'refresh_tokens',
+    'salary_allowances',
+    'salary_packages',
+    'settings',
+    'shop_customers',
+    'shop_data_syncs',
+    'shop_inventory_levels',
+    'shop_order_lines',
+    'shop_orders',
+    'shop_products',
+    'shop_variants',
+    'shopify_apps',
+    'shopify_locations',
+    'shopify_shops',
+    'shopify_stock_sync',
+    'skus',
+    'user_access',
+    'user_list_favorites',
+    'user_list_prefs',
+    'user_stores',
+    'users',
+  ],
+  kept: [
+    '_prisma_migrations',
+    'spatial_ref_sys',
+    'bins',
+    'checklist_template_tasks',
+    'checklist_templates',
+    'company_profile',
+    'cost_tags',
+    'crm_lost_reasons',
+    'dark_stores',
+    'departments',
+    'employee_document_types',
+    'fresh_starts',
+    'geo_areas',
+    'geocode_cache',
+    'governorates',
+    'grades',
+    'holidays',
+    'job_positions',
+    'leave_types',
+    'packaging_items',
+    'payout_checks',
+    'shifts',
+    'store_areas',
+    'store_hours',
+    'violation_steps',
+    'violation_types',
+    'zones',
+  ],
+} as const;
 
 export type TableCounts = Record<string, number>;
 
@@ -118,6 +306,17 @@ export async function freshStart(
         SELECT customer_id FROM shop_orders
           WHERE customer_id IS NOT NULL AND shop_id IN (SELECT id FROM fs_shops)`);
 
+      // Only a database that holds the demo month is wiped, and never orders of real merchants
+      // other than the one kept: on a new production database the word would wipe real data.
+      if (!(await holdsDemo(tx))) throw new Error('fresh_start_no_demo');
+      const samples = SAMPLE_MERCHANT_NAMES.map((n) => `'${n.replace(/'/g, "''")}'`).join(', ');
+      const [{ n: realOrders }] = (await tx.$queryRawUnsafe<{ n: number }[]>(`
+        SELECT COUNT(*)::int AS n FROM orders o JOIN merchants m ON m.id = o.merchant_id
+        WHERE m.name NOT IN (${samples}) AND m.id NOT IN (SELECT id FROM fs_merchants)`)) as [
+        { n: number },
+      ];
+      if (realOrders > 0) throw new Error('fresh_start_real_orders');
+
       const keptMerchants = (
         await tx.$queryRaw<{ name: string }[]>`
           SELECT name FROM merchants WHERE id IN (SELECT id FROM fs_merchants) ORDER BY name`
@@ -134,7 +333,14 @@ export async function freshStart(
         `${column} IS NOT NULL AND ${column} NOT IN (SELECT id FROM ${keep})`;
 
       // Money: statements, receipts, requests, documents, then the ledger itself.
-      // Sales commission points at its paying entry, so it goes first.
+      // Cheques and petty cash point at entries, bills, payouts, requests and photos, and
+      // sales commission at its paying entry, so they go first.
+      await run('cheques', 'DELETE FROM cheques');
+      await run('petty cash', 'DELETE FROM petty_cash_expenses');
+      await run('bank line matches', 'DELETE FROM bank_line_matches');
+      await run('month end marks', 'DELETE FROM month_end_marks');
+      await run('merchant payment reminders', 'DELETE FROM merchant_payment_reminders');
+      await run('emails', 'DELETE FROM email_outbox');
       await run('crm commission lines', 'DELETE FROM crm_commission_lines');
       await run('crm commissions', 'DELETE FROM crm_commissions');
       await run('crm targets', 'DELETE FROM crm_targets');
@@ -152,8 +358,14 @@ export async function freshStart(
       await run('bills', 'DELETE FROM bills');
       await run('prepayments', 'DELETE FROM prepayments');
       await run('fixed assets', 'DELETE FROM fixed_assets');
+      // Bills and assets point at purchase orders, so those go after them.
+      await run('purchase order receipts', 'DELETE FROM purchase_order_receipts');
+      await run('purchase order lines', 'DELETE FROM purchase_order_lines');
+      await run('purchase orders', 'DELETE FROM purchase_orders');
       await run('recurring entries', 'DELETE FROM recurring_entries');
       await run('budgets', 'DELETE FROM budgets');
+      await run('forecast drivers', 'DELETE FROM forecast_drivers');
+      await run('forecast overrides', 'DELETE FROM forecast_overrides');
       await run('forecasts', 'DELETE FROM forecasts');
       await run('payout check marks', 'DELETE FROM payout_check_marks');
       await run('payout proofs', 'DELETE FROM payout_proofs');
@@ -181,6 +393,13 @@ export async function freshStart(
       await run('shopify outbox', 'DELETE FROM shopify_outbox');
       await run('shopify logs', 'DELETE FROM shopify_logs');
       await run('order ratings', 'DELETE FROM order_ratings');
+      await run('order notes', 'DELETE FROM order_notes');
+      await run('packaging movements', 'DELETE FROM packaging_movements');
+      await run('packaging stock', 'DELETE FROM packaging_levels');
+      await run(
+        'packaging recipes of removed merchants',
+        `DELETE FROM packaging_recipes WHERE ${gone('merchant_id', 'fs_merchants')}`,
+      );
       await run('deliveries', 'DELETE FROM deliveries');
       await run('order events', 'DELETE FROM order_events');
       await run('order items', 'DELETE FROM order_items');
@@ -201,6 +420,7 @@ export async function freshStart(
       await run('stock levels', 'DELETE FROM stock_levels');
 
       // Communication, history and attendance.
+      await run('crm proposal products', 'DELETE FROM crm_proposal_products');
       await run('crm proposal tiers', 'DELETE FROM crm_proposal_tiers');
       await run('crm proposals', 'DELETE FROM crm_proposals');
       await run('setup links', 'DELETE FROM user_setup_tokens');
@@ -209,6 +429,7 @@ export async function freshStart(
       await run('crm deals', 'DELETE FROM crm_deals');
       await run('crm contacts', 'DELETE FROM crm_contacts');
       await run('crm companies', 'DELETE FROM crm_companies');
+      await run('website leads', 'DELETE FROM site_leads');
       await run('ticket messages', 'DELETE FROM ticket_messages');
       await run('tickets', 'DELETE FROM tickets');
       await run('notifications', 'DELETE FROM notifications');
@@ -228,7 +449,9 @@ export async function freshStart(
       await run('leave requests', 'DELETE FROM leave_requests');
       await run('leave adjustments', 'DELETE FROM leave_adjustments');
       // HR phase 2: hire drafts (with their files), exits (with reassignments) and reminders.
+      await run('hire draft files', 'DELETE FROM hire_draft_files');
       await run('hire drafts', 'DELETE FROM hire_drafts');
+      await run('reassignments', 'DELETE FROM reassignments');
       await run('employee exits', 'DELETE FROM employee_exits');
       await run('document reminders', 'DELETE FROM document_reminders');
 
@@ -328,6 +551,11 @@ export async function freshStart(
       const goneContract = `contract_id IN (SELECT id FROM merchant_contracts
            WHERE merchant_id NOT IN (SELECT id FROM fs_merchants))`;
       await run('contract files', `DELETE FROM merchant_contract_files WHERE ${goneContract}`);
+      await run(
+        'contract product prices',
+        `DELETE FROM merchant_contract_version_products WHERE version_id IN
+           (SELECT id FROM merchant_contract_versions WHERE ${goneContract})`,
+      );
       await run(
         'contract tiers',
         `DELETE FROM merchant_contract_version_tiers WHERE version_id IN

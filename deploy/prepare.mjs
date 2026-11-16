@@ -2,6 +2,7 @@
 // loads (Prisma, the seed, the demo month) is freed before the servers start: on a 512 MB
 // instance the launcher must stay small. It runs the one time fresh start, the starting data and
 // the demo month, then writes what the launcher needs to know to PREPARE_RESULT and exits.
+import { randomBytes } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -19,14 +20,32 @@ const loadDb = () => {
   const require = createRequire(import.meta.url);
   return require(path.join(root, 'packages/db/dist/index.js'));
 };
+// A switch left set is shown to admins as a startup_flag alert, not only in this log. A failure
+// to raise it never stops the start.
+const raise = async (db, prisma, flag, state) => {
+  try {
+    await db.raiseStartupAlert(prisma, flag, state);
+  } catch (error) {
+    log(`could not raise the ${flag} alert: ${error instanceof Error ? error.message : error}`);
+  }
+};
+// Demo accounts never share the admin's password: without SEED_DEMO_PASSWORD they get a random
+// one nobody knows (set SEED_DEMO_PASSWORD to sign in as them on a demo server).
+const demoPassword = () => {
+  if (env.SEED_DEMO_PASSWORD) return env.SEED_DEMO_PASSWORD;
+  log('SEED_DEMO_PASSWORD is empty: demo accounts get a random password');
+  return `Demo-${randomBytes(18).toString('base64url')}`;
+};
 if (env.FRESH_START) {
   const db = loadDb();
   const prisma = new db.PrismaClient();
   try {
     if (env.FRESH_START !== db.FRESH_START_CONFIRMATION) {
       log('FRESH_START is set but is not the confirmation word; nothing was wiped');
+      await raise(db, prisma, 'FRESH_START', 'fresh_start_wrong_word');
     } else if (await db.freshStartDone(prisma)) {
       log('fresh start already done on this database; remove FRESH_START');
+      await raise(db, prisma, 'FRESH_START', 'fresh_start_done');
     } else {
       log('fresh start: wiping the demo activity (one transaction)');
       const result = await db.freshStart(prisma, { confirm: env.FRESH_START });
@@ -41,6 +60,7 @@ if (env.FRESH_START) {
     }
   } catch (error) {
     log(`fresh start failed, nothing changed: ${error instanceof Error ? error.message : error}`);
+    await raise(db, prisma, 'FRESH_START', 'fresh_start_refused');
   } finally {
     await prisma.$disconnect();
   }
@@ -76,7 +96,7 @@ if (env.SEED_ON_START === 'true') {
             password: env.SEED_ADMIN_PASSWORD,
             name: env.SEED_ADMIN_NAME ?? 'Shiply Admin',
           },
-          demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
+          demoPassword: demoPassword(),
           log,
         });
         if (marker) {
@@ -97,8 +117,9 @@ if (env.SEED_ON_START === 'true') {
 }
 
 // The demo month (DEMO_LOAD=true) runs once before the servers start, and the API's background
-// jobs stay paused while DEMO_LOAD is set so they never act on half simulated orders. Set
-// DEMO_LOAD back to false afterwards: the next start turns the jobs on again.
+// jobs stay paused while it loads so they never act on half simulated orders. Once it is loaded
+// (or refused) the jobs run even if DEMO_LOAD stays set, and admins see a startup_flag alert to
+// remove it. The loader refuses a database holding orders of real merchants.
 // Never after the fresh start: the demo loader refuses, and the jobs must keep running.
 if (env.DEMO_LOAD === 'true') {
   const db = loadDb();
@@ -106,6 +127,7 @@ if (env.DEMO_LOAD === 'true') {
   try {
     if (await db.freshStartDone(prisma)) {
       log('DEMO_LOAD is ignored: this database had its fresh start; remove DEMO_LOAD');
+      await raise(db, prisma, 'DEMO_LOAD', 'demo_not_loaded');
       env.DEMO_LOAD = 'false';
     }
   } finally {
@@ -130,13 +152,22 @@ if (env.DEMO_LOAD === 'true') {
     transactionOptions: { maxWait: 20_000, timeout: 60_000 },
   });
   try {
-    const result = await db.loadDemo(prisma, {
-      demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
-      log,
-    });
-    log(`demo load: ${result.status}; set DEMO_LOAD to false to turn the jobs back on`);
+    const result = await db.loadDemo(prisma, { demoPassword: demoPassword(), log });
+    log(`demo load: ${result.status}`);
+    // Jobs stay off only while a half loaded month may be in the database. Once the month is
+    // loaded (now or before) or will never load here, they run again, and the switch still set
+    // is shown to admins.
+    if (result.status === 'partial_run_found') {
+      log('a stopped demo run was found: background jobs stay off; load into a fresh database');
+    } else {
+      env.DEMO_LOAD = 'false';
+      const loaded = result.status === 'loaded' || result.status === 'already_loaded';
+      await raise(db, prisma, 'DEMO_LOAD', loaded ? 'demo_load_done' : 'demo_not_loaded');
+      log('background jobs run; remove DEMO_LOAD from the service environment');
+    }
   } catch (error) {
     log(`demo load failed: ${error instanceof Error ? error.message : error}`);
+    log('background jobs stay off while DEMO_LOAD is set');
   } finally {
     await prisma.$disconnect();
     await new Promise((resolve) => holding.close(resolve));

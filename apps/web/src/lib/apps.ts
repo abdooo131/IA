@@ -124,7 +124,10 @@ export const APPS: AppDef[] = [
         label: 'customers',
         pages: [{ href: '/admin/customers', label: 'profiles', need: { customerData: true } }],
       },
-      { label: 'places', pages: [{ href: '/admin/customers/places', label: 'places' }] },
+      {
+        label: 'places',
+        pages: [{ href: '/admin/customers/places', label: 'places', need: { customerData: true } }],
+      },
       { label: 'marketData', pages: [{ href: '/admin/data', label: 'marketData' }] },
       { label: 'configuration', pages: [settings('customers')] },
     ],

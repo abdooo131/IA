@@ -79,6 +79,7 @@ const KNOWN = [
   'network',
   'calls_required',
   'photo_required',
+  'photo_not_usable',
   'note_required',
 ];
 

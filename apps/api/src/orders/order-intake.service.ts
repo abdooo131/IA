@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createOrder, type CreatedOrder, DomainError } from '@shiplynow/db';
+import { createOrder, type CreatedOrder, DomainError, orderByIdempotencyKey } from '@shiplynow/db';
 import type { CreateOrderBody } from '@shiplynow/shared';
 import { CoverageService } from '../coverage/coverage.service';
 import { DeliveryResolver } from '../coverage/delivery-resolver.service';
@@ -27,6 +27,13 @@ export class OrderIntakeService {
     /** Refuses a store the person may not work in, before anything is written */
     checkStore?: (darkStoreId: string) => void,
   ): Promise<CreatedOrder> {
+    // A repeat of a saved form answers the first order, even if the store closed since.
+    // The key is per merchant, so the same key from another merchant never meets this one.
+    const key = body.idempotencyKey ? `${merchantId}:${body.idempotencyKey}` : undefined;
+    if (key) {
+      const first = await orderByIdempotencyKey(this.prisma, merchantId, key);
+      if (first) return first;
+    }
     // A pin decides first, then the neighbourhood picked; never the zone centre.
     const decision = await this.resolver.resolve(
       {
@@ -58,6 +65,7 @@ export class OrderIntakeService {
       paymentMethod: body.paymentMethod,
       deliveryFeePiastres: body.deliveryFeePiastres,
       items: body.items,
+      idempotencyKey: key,
       actorUserId,
     });
   }

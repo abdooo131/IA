@@ -1,9 +1,16 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { cancelReturn, getReturnDetail, listReturns, type ReturnStatus } from '@shiplynow/db';
+import {
+  cancelReturn,
+  closeReturnShort,
+  getReturnDetail,
+  listReturns,
+  type ReturnStatus,
+} from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   cancelReturnSchema,
+  closeReturnShortSchema,
   RETURN_STATUSES,
   type AccessProfile,
   canDo,
@@ -102,6 +109,24 @@ export class AdminReturnsController {
   ) {
     await this.checkStore(id, access);
     return cancelReturn(this.prisma, { returnId: id, actorUserId: user.sub, reason: body.reason });
+  }
+
+  /** Units that cannot be found: inventory manage closes the return short. */
+  @Post(':id/close-short')
+  @Access('inventory', 'manage')
+  async closeShort(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(closeReturnShortSchema))
+    body: z.infer<typeof closeReturnShortSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    await this.checkStore(id, access);
+    return closeReturnShort(this.prisma, {
+      returnId: id,
+      reason: body.reason,
+      actorUserId: user.sub,
+    });
   }
 
   private async checkStore(id: string, access: AccessProfile) {

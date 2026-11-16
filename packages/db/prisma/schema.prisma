@@ -813,6 +813,8 @@ model MerchantReturnLine {
   source    StockSource
   quantity  Int
   pickedQty Int         @default(0) @map("picked_qty")
+  /// Units not found when the return was closed short (released, no longer claimed)
+  shortQty  Int         @default(0) @map("short_qty")
 
   return MerchantReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
   sku    Sku            @relation(fields: [skuId], references: [id])
@@ -1004,6 +1006,8 @@ model Order {
   darkStoreId               String        @map("dark_store_id")
   shopifyOrderId            String?       @map("shopify_order_id")
   shopifyFulfillmentOrderId String?       @unique @map("shopify_fulfillment_order_id")
+  /// Manual orders: the form's key, so a double submit or a retry creates one order
+  idempotencyKey            String?       @unique @map("idempotency_key")
   source                    OrderSource   @default(manual)
   status                    OrderStatus   @default(new)
   zoneId                    String?       @map("zone_id")

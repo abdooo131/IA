@@ -36,7 +36,7 @@ You do not need to create tables or install PostGIS: the server does both on its
    | `DATABASE_URL` | the Neon connection string from step 1 |
    | `SEED_ADMIN_EMAIL` | the admin login you want, for example `admin@yourcompany.com` |
    | `SEED_ADMIN_PASSWORD` | a strong password, at least 10 characters |
-   | `SEED_DEMO_PASSWORD` | password for the demo staff, rider and merchant accounts |
+   | `SEED_DEMO_PASSWORD` | password for the demo staff, rider and merchant accounts (empty: they get a random password nobody knows, never the admin's) |
    | `GOOGLE_MAPS_API_KEY` | leave empty unless you have one |
    | `SHOPIFY_API_SECRET` | the Shopify app's client secret (Dev Dashboard), only when testing Shopify |
 
@@ -114,11 +114,12 @@ under **Environment** and redeploy. On that start, after the seed, the container
 last 30 days (about 600 orders from accept to delivery, failed and cancelled ones, cash
 handovers, bank deposits, weekly payouts, storage fees, rent and fuel, a supplier bill,
 last month's salaries and tax invoices, a return and damage reports) through the real rules,
-with the times of that month. It runs in the background after the app starts (background jobs are paused until `DEMO_LOAD` is false again), runs only once
+with the times of that month. It runs before the servers start (background jobs are paused only while it loads; once it is loaded, or refused, they run even if `DEMO_LOAD` is still set, and admins see a "Start up switch left on" alert until it is removed), runs only once
 (a later start sees it is loaded and skips it) and adds two demo merchants, Nile Pantry and
 Bayt Home & Care, plus extra riders and a second finance approver, all with
 `SEED_DEMO_PASSWORD`. Set `DEMO_LOAD` back to `false` afterwards. Locally:
-`DEMO_LOAD=true pnpm db:demo`. Never use it on a database with real merchants.
+`DEMO_LOAD=true pnpm db:demo`. Never use it on a database with real merchants: the loader
+refuses a database holding orders of merchants other than the seed's and the demo's.
 
 ### Starting from real data instead of demo data
 
@@ -158,7 +159,10 @@ Steps: take a Neon backup branch first. Add `FRESH_START` = `WIPE-DEMO-2026-11-0
 rows before and after (`[start] fresh start: orders 598 -> 0`). Then remove `FRESH_START`.
 A row in `fresh_starts` records the run: a second run is refused, the demo loader refuses to
 run, and the seed (`SEED_ON_START`) no longer adds the sample merchant, team or stock. If it
-fails, the log says so, nothing changed, and the app starts as usual.
+fails, the log says so, nothing changed, and the app starts as usual. It refuses a database
+that never held the demo month and one holding orders of real merchants other than Nabta. While
+`FRESH_START` stays set after the run (or with a wrong word), admins see a "Start up switch left
+on" alert; the same alert says when background jobs are switched off.
 
 ## Troubleshooting
 

@@ -71,6 +71,7 @@ export class AdminCustomersController {
   }
 
   @Get('overview')
+  @Access('customers', 'view', { customerData: true })
   async overview(@CurrentAccess() access: AccessProfile | undefined) {
     const all = await customersOverview(this.prisma);
     const merchants = limitedMerchants(access);
@@ -138,6 +139,7 @@ export class AdminCustomersController {
 
   /** Customers and spend by district against our zones: where a new dark store pays. */
   @Get('places')
+  @Access('customers', 'view', { customerData: true })
   places() {
     return districtDemand(this.prisma);
   }

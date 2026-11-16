@@ -1,10 +1,14 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { captureProof } from '@/lib/camera';
 import { shrinkPhoto, uploadPhoto } from '@/lib/photo';
 
-/** Opens the phone camera, shrinks the photo, uploads it and reports its id. */
+/**
+ * Opens the phone camera, shrinks the photo, uploads it and reports its id. The preview shows
+ * only a photo that was uploaded: a failed retake keeps showing the photo still attached.
+ */
 export function PhotoCapture({
   kind,
   label,
@@ -21,15 +25,28 @@ export function PhotoCapture({
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // The previous preview's object URL is freed when it is replaced and when the screen closes.
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
+
   async function chosen(file: File | undefined) {
     if (!file) return;
     setBusy(true);
     try {
       const small = await shrinkPhoto(file).catch(() => file);
-      setPreview(URL.createObjectURL(small));
-      const result = await uploadPhoto(kind, small);
-      if (result.ok) onUploaded(result.id);
-      else onError(result.error);
+      const result = await captureProof(
+        small,
+        (photo) => uploadPhoto(kind, photo),
+        (photo) => URL.createObjectURL(photo),
+      );
+      if (result.ok) {
+        setPreview(result.url);
+        onUploaded(result.id);
+      } else onError(result.error);
     } finally {
       setBusy(false);
       if (input.current) input.current.value = '';

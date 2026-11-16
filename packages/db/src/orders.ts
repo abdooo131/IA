@@ -168,6 +168,8 @@ export interface CreateOrderInput {
   placedAt?: Date;
   /** Start of the SLA clock when later than placement (the store opens later) */
   slaStartsAt?: Date;
+  /** Manual orders: the form's key; a repeat answers the first order instead of a second one */
+  idempotencyKey?: string;
   actorUserId: Actor;
 }
 
@@ -180,12 +182,51 @@ export interface CreatedOrder {
 }
 
 /**
+ * The order an earlier request with this key created, answered as createOrder answered it.
+ * A key used by another merchant is refused (idempotency_key_reused), never shown.
+ */
+export async function orderByIdempotencyKey(
+  db: Db,
+  merchantId: string,
+  idempotencyKey: string,
+): Promise<CreatedOrder | null> {
+  const order = await db.order.findUnique({
+    where: { idempotencyKey },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      merchantId: true,
+      phoneFlagged: true,
+      items: { select: { cancelledQty: true, sku: { select: { sku: true } } } },
+    },
+  });
+  if (!order) return null;
+  if (order.merchantId !== merchantId) throw new DomainError('idempotency_key_reused', 409);
+  return {
+    id: order.id,
+    number: order.number,
+    status: order.status,
+    phoneFlagged: order.phoneFlagged,
+    cancelled: order.items
+      .filter((i) => i.cancelledQty > 0)
+      .map((i) => ({ sku: i.sku.sku, quantity: i.cancelledQty })),
+  };
+}
+
+/**
  * Creates an order and reserves its stock. Units the store does not have are cancelled
  * on the spot (the rest is still delivered); if nothing is available the order is moved
  * to standard delivery and nothing is reserved.
  */
 export function createOrder(db: Db, input: CreateOrderInput): Promise<CreatedOrder> {
   return inTransaction(db, async (tx) => {
+    if (input.idempotencyKey) {
+      // Two requests with one key wait for each other; the second answers the first order.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`order:${input.idempotencyKey}`}))`;
+      const first = await orderByIdempotencyKey(tx, input.merchantId, input.idempotencyKey);
+      if (first) return first;
+    }
     const store = await tx.darkStore.findUnique({ where: { id: input.darkStoreId } });
     if (!store || !store.isActive) throw new DomainError('dark_store_not_found', 404);
     if (store.kind === 'hub') throw new DomainError('hub_takes_no_orders');
@@ -237,6 +278,7 @@ export function createOrder(db: Db, input: CreateOrderInput): Promise<CreatedOrd
         placedAt,
         slaStartsAt: input.slaStartsAt ?? null,
         slaDueAt: new Date((input.slaStartsAt ?? placedAt).getTime() + promise * 60_000),
+        idempotencyKey: input.idempotencyKey ?? null,
         createdById: input.actorUserId,
         items: {
           create: priced.map((i) => ({
@@ -546,6 +588,36 @@ export function markItemMissing(
   });
 }
 
+/**
+ * A proof photo (pack, handover or door) proves one thing only: it must be of the right kind,
+ * taken by the person using it, taken within delivery.proof_photo_max_minutes and not already
+ * used by another order or delivery. Otherwise the photo cannot prove anything
+ * (photo_required when it is missing or of another kind, photo_not_usable otherwise).
+ */
+async function assertProofPhoto(
+  tx: Tx,
+  input: { photoId: string; kind: 'pack' | 'delivery'; actorUserId: Actor; now: Date },
+) {
+  const photo = await tx.photo.findUnique({
+    where: { id: input.photoId },
+    select: {
+      kind: true,
+      createdById: true,
+      createdAt: true,
+      _count: { select: { packedFor: true, deliveries: true, failedDeliveries: true } },
+    },
+  });
+  if (!photo || photo.kind !== input.kind) throw new DomainError('photo_required', 400);
+  const maxMinutes = await getSetting(tx, 'delivery.proof_photo_max_minutes');
+  const used = photo._count.packedFor + photo._count.deliveries + photo._count.failedDeliveries;
+  if (
+    (input.actorUserId !== null && photo.createdById !== input.actorUserId) ||
+    used > 0 ||
+    photo.createdAt.getTime() < input.now.getTime() - maxMinutes * 60_000
+  )
+    throw new DomainError('photo_not_usable', 400);
+}
+
 export function packOrder(
   db: Db,
   input: {
@@ -560,11 +632,12 @@ export function packOrder(
   return inTransaction(db, async (tx) => {
     const order = await lockOrder(tx, input.orderId, input.darkStoreId);
     if (order.status !== 'picking' || !order.pickedAt) throw new DomainError('not_fully_picked');
-    const photo = await tx.photo.findUnique({
-      where: { id: input.photoId },
-      select: { kind: true },
+    await assertProofPhoto(tx, {
+      photoId: input.photoId,
+      kind: 'pack',
+      actorUserId: input.actorUserId,
+      now: new Date(),
     });
-    if (!photo || photo.kind !== 'pack') throw new DomainError('photo_required', 400);
     await moveStatus(tx, order, 'packed', ['picking'], input.actorUserId, 'packed', {
       packedAt: new Date(),
       packPhotoId: input.photoId,
@@ -834,13 +907,13 @@ async function completeInTx(
     throw new DomainError('otp_locked', 400);
   const otpOk = !forRider && input.otp !== undefined && input.otp === order.deliveryOtp;
   if (!forRider && input.otp !== undefined && !otpOk) throw new DomainError('wrong_otp', 400);
-  if (input.photoId) {
-    const photo = await tx.photo.findUnique({
-      where: { id: input.photoId },
-      select: { kind: true },
+  if (input.photoId)
+    await assertProofPhoto(tx, {
+      photoId: input.photoId,
+      kind: 'delivery',
+      actorUserId: actor,
+      now,
     });
-    if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
-  }
   const isCod = order.paymentMethod === 'cod' && delivery.codExpectedPiastres > 0;
   if (isCod && input.codCollectedPiastres === undefined) throw new DomainError('cod_required', 400);
   const collected = isCod ? input.codCollectedPiastres! : null;
@@ -956,13 +1029,13 @@ async function failInTx(
     if (!input.photoId) throw new DomainError('photo_required', 400);
   }
   if (input.reason === 'other' && !input.note) throw new DomainError('note_required', 400);
-  if (input.photoId) {
-    const photo = await tx.photo.findUnique({
-      where: { id: input.photoId },
-      select: { kind: true },
+  if (input.photoId)
+    await assertProofPhoto(tx, {
+      photoId: input.photoId,
+      kind: 'delivery',
+      actorUserId: actor,
+      now,
     });
-    if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
-  }
   await tx.delivery.update({
     where: { id: delivery.id },
     data: {
