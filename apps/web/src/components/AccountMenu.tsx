@@ -28,7 +28,6 @@ export function AccountMenu({
   compact?: boolean;
 }) {
   const t = useTranslations('common');
-  const ts = useTranslations('sop');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Team members and riders see their own photo on the button (My HR); none: the gear alone.
@@ -106,7 +105,7 @@ export function AccountMenu({
               href="/help"
               className="flex h-10 items-center rounded-md border border-line bg-surface px-3 text-body-sm font-bold text-link"
             >
-              {ts('menu')}
+              {t('help')}
             </Link>
             <Link
               href="/notifications"

@@ -1,6 +1,7 @@
 import type { MerchantRightName } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { ClientMessages } from '@/components/ClientMessages';
 import { DashboardShell } from '@/components/DashboardShell';
 import type { NavGroup, NavItem } from '@/components/SideNav';
 import { apiGet, getMerchantRights } from '@/lib/api-server';
@@ -43,5 +44,9 @@ export default async function MerchantLayout({ children }: { children: ReactNode
       items: items.filter((i) => allowed(i.right)).map(({ right: _right, ...item }) => item),
     },
   ];
-  return <DashboardShell groups={groups}>{children}</DashboardShell>;
+  return (
+    <ClientMessages scope="merchant">
+      <DashboardShell groups={groups}>{children}</DashboardShell>
+    </ClientMessages>
+  );
 }

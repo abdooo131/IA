@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ClientMessages } from '@/components/ClientMessages';
 import { AppShell } from '@/components/AppShell';
 import { apiTry } from '@/lib/api-server';
 
@@ -10,13 +11,15 @@ import { apiTry } from '@/lib/api-server';
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const hr = await apiTry<{ inbox: number; suggested: number }>('/me/hr-badges');
   return (
-    <AppShell
-      badges={{
-        '/admin/hr/inbox': hr?.inbox ?? 0,
-        '/admin/hr/violations/suggested': hr?.suggested ?? 0,
-      }}
-    >
-      {children}
-    </AppShell>
+    <ClientMessages scope="admin">
+      <AppShell
+        badges={{
+          '/admin/hr/inbox': hr?.inbox ?? 0,
+          '/admin/hr/violations/suggested': hr?.suggested ?? 0,
+        }}
+      >
+        {children}
+      </AppShell>
+    </ClientMessages>
   );
 }
