@@ -62,12 +62,52 @@ export const envSchema = z.object({
   SHOPIFY_API_VERSION: z.string().default('2026-10'),
   /** More install permissions once Shopify approves them, comma separated (read_all_orders) */
   SHOPIFY_EXTRA_SCOPES: z.string().optional(),
+  /**
+   * Cloudflare R2 (S3 compatible) for uploaded files. All four or none: without them files stay
+   * in Postgres as before. The token needs Object Read and Write on this one bucket only.
+   */
+  R2_ACCOUNT_ID: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/, 'R2_ACCOUNT_ID is the 32 character Cloudflare account id')
+    .optional()
+    .or(z.literal('')),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, 'R2_BUCKET is a bucket name (a-z, 0-9, -)')
+    .optional()
+    .or(z.literal('')),
+});
+
+const R2_KEYS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'] as const;
+
+/** R2 is configured with all four values, or none (the problem names the keys, never values). */
+const fullSchema = envSchema.superRefine((env, ctx) => {
+  const set = R2_KEYS.filter((k) => Boolean(env[k]));
+  if (set.length > 0 && set.length < R2_KEYS.length)
+    ctx.addIssue({
+      code: 'custom',
+      path: [R2_KEYS.find((k) => !env[k])!],
+      message: `R2 needs all four of ${R2_KEYS.join(', ')} (or none); missing ${R2_KEYS.filter((k) => !env[k]).join(', ')}`,
+    });
 });
 
 export type Env = z.infer<typeof envSchema>;
 
+/** The R2 settings when all four are set, else null (files stay in the database). */
+export function r2Config(env: Pick<Env, (typeof R2_KEYS)[number]>) {
+  if (!R2_KEYS.every((k) => Boolean(env[k]))) return null;
+  return {
+    accountId: env.R2_ACCOUNT_ID!,
+    accessKeyId: env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY!,
+    bucket: env.R2_BUCKET!,
+  };
+}
+
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(raw);
+  const result = fullSchema.safeParse(raw);
   if (!result.success) {
     const problems = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
     throw new Error(`Invalid environment:\n  ${problems.join('\n  ')}`);

@@ -202,6 +202,7 @@ export const FRESH_START_TABLES = {
     'dark_stores',
     'departments',
     'employee_document_types',
+    'file_orphans',
     'fresh_starts',
     'geo_areas',
     'geocode_cache',

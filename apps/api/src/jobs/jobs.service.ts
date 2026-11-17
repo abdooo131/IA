@@ -32,6 +32,8 @@ import {
   runReceivableReminders,
   runDepositDeadline,
   purgeUnlinkedUploads,
+  moveFilesToR2,
+  cleanOrphanFiles,
   cleanUpTables,
   cleanupDue,
   raiseStartupAlert,
@@ -83,6 +85,9 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private documentsDone: string | null = null;
   /** The hour unlinked finance uploads were last cleared */
   private uploadsDone: string | null = null;
+  /** The hour R2 objects without a row were last cleared */
+  private orphansDone: string | null = null;
+  private movingFiles = false;
   /** The last Cairo day the nightly table clean up ran in this instance. */
   private cleanupDone: string | null = null;
   /** The last ten minute slot the attendance close ran in this instance. */
@@ -139,6 +144,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runDepositDeadline();
       void this.runUploadPurge();
       void this.runTableCleanup();
+      void this.runFileMove();
+      void this.runOrphanFileClean();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -206,6 +213,49 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: upload purge', error);
+      return null;
+    }
+  }
+
+  /**
+   * While R2 is configured and files.move_enabled is 1: copies files.move_batch_size files still
+   * kept in the database to R2, each checked (size and SHA-256) before its row says r2, under
+   * the mover's advisory lock. A moved row is never read again, so repeats move nothing twice.
+   */
+  async runFileMove() {
+    if (this.movingFiles) return null;
+    this.movingFiles = true;
+    try {
+      const result = await moveFilesToR2(this.prisma);
+      if (result.moved + result.failed > 0)
+        this.log.log(`Files: ${result.moved} moved to R2, ${result.failed} failed the check`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: file move', error);
+      return null;
+    } finally {
+      this.movingFiles = false;
+    }
+  }
+
+  /**
+   * Once an hour: notes R2 objects older than a day that no row names (an upload whose
+   * transaction rolled back, a replaced or deleted file) and deletes them files.orphan_keep_days
+   * later. Deleting twice deletes nothing more.
+   */
+  async runOrphanFileClean(now: Date = new Date()) {
+    const hour = now.toISOString().slice(0, 13);
+    if (this.orphansDone === hour) return null;
+    try {
+      const result = await cleanOrphanFiles(this.prisma, now);
+      this.orphansDone = hour;
+      if (result.noted + result.deleted + result.refused > 0)
+        this.log.log(
+          `Files: ${result.noted} unused R2 objects noted, ${result.deleted} deleted, ${result.refused} refused by the bucket`,
+        );
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: file clean up', error);
       return null;
     }
   }

@@ -28,6 +28,7 @@ import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { issueSetupToken } from './crm-proposals';
 import { DomainError } from './domain-error';
+import { readStoredFile, storeFileBytes } from './files';
 import { startChecklist } from './hr-checklists';
 import { addEmployeeDocument, departmentChains, isRequired, looksLike } from './hr-documents';
 import { assertNoManagerLoop, checkPlacement } from './hr-org';
@@ -294,6 +295,8 @@ export function addHireDraftFile(
         throw new DomainError('expires_before_issued', 400);
       if (type.hasExpiry && !input.expiresOn) throw new DomainError('expiry_required', 400);
     }
+    // The file is kept first (R2 when configured), then its row in this transaction.
+    const stored = await storeFileBytes('hireDraftFile', input.data, input.contentType);
     const f = await tx.hireDraftFile.create({
       data: {
         draftId: d.id,
@@ -303,8 +306,7 @@ export function addHireDraftFile(
         issuedOn: toDate(input.issuedOn),
         expiresOn: toDate(input.expiresOn),
         contentType: input.contentType,
-        data: new Uint8Array(input.data),
-        sizeBytes: input.data.length,
+        ...stored,
       },
       select: fileSelect,
     });
@@ -340,7 +342,7 @@ export async function getHireDraftFile(
       : { draftId: input.draftId, kind: 'photo' },
   });
   if (!f) throw new DomainError(input.fileId ? 'document_not_found' : 'photo_not_found', 404);
-  return f;
+  return { ...f, data: await readStoredFile(f) };
 }
 
 /**
@@ -620,12 +622,16 @@ export async function createHireFromDraft(
         orderBy: { createdAt: 'asc' },
       });
       const photo = files.find((f) => f.kind === 'photo');
+      // The photo keeps its bytes where they are (the row, or the same R2 object).
       if (photo)
         await tx.employeePhoto.create({
           data: {
             employeeId: employee.id,
             contentType: photo.contentType,
             data: photo.data,
+            storage: photo.storage,
+            storageKey: photo.storageKey,
+            sha256: photo.sha256,
             sizeBytes: photo.sizeBytes,
           },
         });
@@ -638,7 +644,7 @@ export async function createHireFromDraft(
           issuedOn: dayText(f.issuedOn) ?? undefined,
           expiresOn: dayText(f.expiresOn) ?? undefined,
           contentType: f.contentType,
-          data: Buffer.from(f.data),
+          data: await readStoredFile(f),
           actorUserId: input.actor.userId,
           scope: null,
         });

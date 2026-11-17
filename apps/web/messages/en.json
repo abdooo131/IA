@@ -83,6 +83,29 @@
     "6": "Saturday"
   },
   "admin": {
+    "fileStorage": {
+      "title": "File storage",
+      "database": "Uploaded files are kept in the database. Set the four R2 values on the server to keep them in Cloudflare R2.",
+      "r2Moving": "New files go to Cloudflare R2. Files still in the database are copied there a few at a time in the background.",
+      "r2Paused": "New files go to Cloudflare R2. Copying the older files is switched off (files move setting).",
+      "inDatabase": "In the database",
+      "inR2": "In R2",
+      "done": "Moved",
+      "percent": "{value}%",
+      "failed": "{count, plural, one {# file failed its check and stays in the database; see Alerts} other {# files failed their check and stay in the database; see Alerts}}",
+      "kind": "Files",
+      "megabytes": "MB in the database",
+      "kinds": {
+        "photo": "Photos and receipts",
+        "payoutProof": "Proofs of transfer",
+        "employeePhoto": "Employee photos",
+        "employeeDocument": "Employee documents",
+        "contractFile": "Signed contracts",
+        "hireDraftFile": "New hire files",
+        "leaveDocument": "Leave documents",
+        "violationEvidence": "Violation evidence"
+      }
+    },
     "nav": {
       "overview": "Overview",
       "zones": "Zones",
@@ -373,6 +396,7 @@
         "transfer_short_sent": "Transfer {reference} left with units missing",
         "transfer_short_received": "Transfer {reference} arrived with units missing",
         "return_short": "Return {reference} closed with units not found",
+        "file_move_failed": "A file in {table} could not be copied to R2 ({problem, select, size_mismatch {size differs} sha256_mismatch {content differs} other {not found after upload}}); it stays in the database. Mark handled to try again",
         "startup_flag": "{state, select, jobs_disabled {Background jobs are switched off by {flag}: no late flags, Shopify sync, emails or push} fresh_start_done {FRESH_START is still set but the fresh start already ran; remove it} fresh_start_wrong_word {FRESH_START is set without the confirmation word; nothing was wiped; remove it} fresh_start_refused {The fresh start was refused or failed and nothing changed; check the server log and remove FRESH_START} demo_load_done {DEMO_LOAD is still set although the demo month is loaded; remove it} demo_not_loaded {DEMO_LOAD is set but demo data is not loaded on this database; remove it} other {{flag} is still set on the server}}",
         "cod_risk_customer": "Cash order from a customer with high delivery risk",
         "document_expiring": "{nameEn}: a document runs out on {expiresOn}",
@@ -410,6 +434,7 @@
         "transfer_short_sent": "Transfer sent short",
         "transfer_short_received": "Transfer arrived short",
         "return_short": "Return closed short",
+        "file_move_failed": "File not moved to R2",
         "startup_flag": "Start up switch left on",
         "cod_risk_customer": "Risky cash customer",
         "document_expiring": "Document running out",
@@ -526,6 +551,9 @@
         "push__enabled": "Phone and browser notifications on (1) or off (0)",
         "shopify__log_retention_days": "Keep the Shopify log for (days)",
         "shopify__outbox_retention_days": "Keep finished Shopify calls for (days)",
+        "files__move_enabled": "Copy files kept in the database to R2 (1 on, 0 off)",
+        "files__orphan_keep_days": "Keep R2 files no record uses for (days, at least the backup days)",
+        "files__move_batch_size": "Files copied to R2 in one run",
         "cleanup__run_hour": "Nightly clean up runs after (Cairo hour)",
         "cleanup__refresh_token_days": "Delete expired sign in sessions after (days)",
         "cleanup__geocode_not_found_days": "Delete addresses Google could not find after (days)",

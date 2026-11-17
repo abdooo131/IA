@@ -10,7 +10,7 @@ import {
   deleteContractFile,
   DomainError,
   getContract,
-  getContractFile,
+  readContractFile,
   merchantOverview,
   updateContractDraft,
   updateMerchantBank,
@@ -217,7 +217,7 @@ export class AdminContractsController {
   @Get(':id/contract/files/:fileId')
   @Access(['merchants', 'accounting'], 'view', { merchantParam: 'id' })
   async file(@Param('id') id: string, @Param('fileId') fileId: string, @Res() res: Response) {
-    sendContractFile(res, await getContractFile(this.prisma, id, fileId));
+    sendContractFile(res, await readContractFile(this.prisma, id, fileId));
   }
 
   @Delete(':id/contract/files/:fileId')

@@ -1292,18 +1292,38 @@ enum PhotoKind {
 }
 
 /// Small JPEG photos (pack and delivery proof), stored in the database so any host works.
+/// Where a stored file's bytes live: in its own row (db) or in the Cloudflare R2 bucket (r2).
+enum FileStorage {
+  db
+  r2
+}
+
+/// An R2 object no row names, noted by the orphan clean up the first time it was seen; deleted
+/// files.orphan_keep_days later, so a database restored from a kept backup finds its files.
+model FileOrphan {
+  key         String   @id
+  firstSeenAt DateTime @map("first_seen_at")
+
+  @@map("file_orphans")
+}
+
 model Photo {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   kind        PhotoKind
-  contentType String    @map("content_type")
-  data        Bytes
-  sizeBytes   Int       @map("size_bytes")
+  contentType String      @map("content_type")
+  data        Bytes?
+  /// Where the bytes live: db (data) or r2 (storage_key in the R2 bucket); see packages/db/src/files
+  storage     FileStorage @default(db)
+  storageKey  String?     @unique @map("storage_key")
+  /// SHA-256 of the bytes (hex), set on upload or when moved to R2
+  sha256      String?
+  sizeBytes   Int         @map("size_bytes")
   /// The file's own name (a PDF), shown beside its icon
-  fileName    String?   @map("file_name")
+  fileName    String?     @map("file_name")
   /// Uploaded from a finance form and not saved with a record yet (deleted after a day)
-  unlinked    Boolean   @default(false)
-  createdById String?   @map("created_by_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  unlinked    Boolean     @default(false)
+  createdById String?     @map("created_by_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
 
   createdBy        User?            @relation("photo_created_by", fields: [createdById], references: [id], onDelete: Restrict)
   packedFor        Order[]          @relation("order_pack_photo")
@@ -1790,19 +1810,24 @@ model PayoutStatement {
 /// The proof of transfer (POT-000001): the bank slip (JPEG, PNG or PDF, at most 5 MB) with the
 /// amount and bank reference typed from it. A payout is marked paid only with one.
 model PayoutProof {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   /// Gapless serial number shown as POT-000001
-  number         Int      @unique
-  payoutId       String   @unique @map("payout_id")
-  fileName       String   @map("file_name")
-  contentType    String   @map("content_type")
-  sizeBytes      Int      @map("size_bytes")
-  data           Bytes
-  amountPiastres Int      @map("amount_piastres")
+  number         Int         @unique
+  payoutId       String      @unique @map("payout_id")
+  fileName       String      @map("file_name")
+  contentType    String      @map("content_type")
+  sizeBytes      Int         @map("size_bytes")
+  data           Bytes?
+  /// Where the bytes live: db (data) or r2 (storage_key in the R2 bucket); see packages/db/src/files
+  storage        FileStorage @default(db)
+  storageKey     String?     @unique @map("storage_key")
+  /// SHA-256 of the bytes (hex), set on upload or when moved to R2
+  sha256         String?
+  amountPiastres Int         @map("amount_piastres")
   reference      String
-  uploadedById   String   @map("uploaded_by_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  uploadedById   String      @map("uploaded_by_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
 
   payout     Payout @relation(fields: [payoutId], references: [id], onDelete: Restrict)
   uploadedBy User   @relation("payout_proof_uploaded_by", fields: [uploadedById], references: [id], onDelete: Restrict)
@@ -3098,11 +3123,16 @@ model Employee {
 
 /// The square photo of a person (JPEG made on the phone), apart so lists never load it.
 model EmployeePhoto {
-  employeeId  String   @id @map("employee_id")
-  contentType String   @map("content_type")
-  data        Bytes
-  sizeBytes   Int      @map("size_bytes")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  employeeId  String      @id @map("employee_id")
+  contentType String      @map("content_type")
+  data        Bytes?
+  /// Where the bytes live: db (data) or r2 (storage_key in the R2 bucket); see packages/db/src/files
+  storage     FileStorage @default(db)
+  storageKey  String?     @unique @map("storage_key")
+  /// SHA-256 of the bytes (hex), set on upload or when moved to R2
+  sha256      String?
+  sizeBytes   Int         @map("size_bytes")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
@@ -3233,7 +3263,12 @@ model EmployeeDocument {
   typeId       String                 @map("type_id")
   title        String?
   contentType  String                 @map("content_type")
-  data         Bytes
+  data         Bytes?
+  /// Where the bytes live: db (data) or r2 (storage_key in the R2 bucket); see packages/db/src/files
+  storage      FileStorage            @default(db)
+  storageKey   String?                @unique @map("storage_key")
+  /// SHA-256 of the bytes (hex), set on upload or when moved to R2
+  sha256       String?
   sizeBytes    Int                    @map("size_bytes")
   issuedOn     DateTime?              @map("issued_on") @db.Date
   expiresOn    DateTime?              @map("expires_on") @db.Date
@@ -3931,16 +3966,21 @@ model MerchantContractVersionProduct {
 
 /// Signed contract files (PDF, JPG or PNG, at most 5 MB), kept in Postgres like other files.
 model MerchantContractFile {
-  id           String   @id @default(cuid())
-  contractId   String   @map("contract_id")
+  id           String      @id @default(cuid())
+  contractId   String      @map("contract_id")
   /// The version it signs (null: the contract as a whole)
-  versionId    String?  @map("version_id")
-  fileName     String   @map("file_name")
-  contentType  String   @map("content_type")
-  sizeBytes    Int      @map("size_bytes")
-  data         Bytes
-  uploadedById String?  @map("uploaded_by_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+  versionId    String?     @map("version_id")
+  fileName     String      @map("file_name")
+  contentType  String      @map("content_type")
+  sizeBytes    Int         @map("size_bytes")
+  data         Bytes?
+  /// Where the bytes live: db (data) or r2 (storage_key in the R2 bucket); see packages/db/src/files
+  storage      FileStorage @default(db)
+  storageKey   String?     @unique @map("storage_key")
+  /// SHA-256 of the bytes (hex), set on upload or when moved to R2
+  sha256       String?
+  uploadedById String?     @map("uploaded_by_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   contract   MerchantContract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
   version    MerchantContractVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
@@ -4711,6 +4751,11 @@ model LeaveRequest {
   overrideBackdate    Boolean            @default(false) @map("override_backdate")
   documentContentType String?            @map("document_content_type")
   documentData        Bytes?             @map("document_data")
+  /// Where the document's bytes live (see packages/db/src/files)
+  documentStorage     FileStorage        @default(db) @map("document_storage")
+  documentStorageKey  String?            @unique @map("document_storage_key")
+  documentSha256      String?            @map("document_sha256")
+  documentSizeBytes   Int?               @map("document_size_bytes")
   documentName        String?            @map("document_name")
   managerDecidedById  String?            @map("manager_decided_by_id")
   managerDecidedAt    DateTime?          @map("manager_decided_at")
@@ -4870,6 +4915,11 @@ model Violation {
   finalAt             DateTime?       @map("final_at")
   evidenceContentType String?         @map("evidence_content_type")
   evidenceData        Bytes?          @map("evidence_data")
+  /// Where the evidence's bytes live (see packages/db/src/files)
+  evidenceStorage     FileStorage     @default(db) @map("evidence_storage")
+  evidenceStorageKey  String?         @unique @map("evidence_storage_key")
+  evidenceSha256      String?         @map("evidence_sha256")
+  evidenceSizeBytes   Int?            @map("evidence_size_bytes")
   evidenceName        String?         @map("evidence_name")
   /// The salary run that took the deduction (once only) and how much it took
   payrollEntryId      String?         @map("payroll_entry_id")
@@ -4996,18 +5046,23 @@ model HireDraft {
 
 /// A photo or document added to a draft before the file exists; copied to the file on create.
 model HireDraftFile {
-  id          String    @id @default(cuid())
-  draftId     String    @map("draft_id")
+  id          String      @id @default(cuid())
+  draftId     String      @map("draft_id")
   /// photo or document
   kind        String
-  typeId      String?   @map("type_id")
+  typeId      String?     @map("type_id")
   title       String?
-  issuedOn    DateTime? @map("issued_on") @db.Date
-  expiresOn   DateTime? @map("expires_on") @db.Date
-  contentType String    @map("content_type")
-  data        Bytes
-  sizeBytes   Int       @map("size_bytes")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  issuedOn    DateTime?   @map("issued_on") @db.Date
+  expiresOn   DateTime?   @map("expires_on") @db.Date
+  contentType String      @map("content_type")
+  data        Bytes?
+  /// Where the bytes live: db (data) or r2 (storage_key in the R2 bucket); see packages/db/src/files
+  storage     FileStorage @default(db)
+  storageKey  String?     @unique @map("storage_key")
+  /// SHA-256 of the bytes (hex), set on upload or when moved to R2
+  sha256      String?
+  sizeBytes   Int         @map("size_bytes")
+  createdAt   DateTime    @default(now()) @map("created_at")
 
   draft HireDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
 

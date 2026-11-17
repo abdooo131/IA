@@ -3,6 +3,8 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   addPayoutProof,
+  FakeFileStore,
+  type FileStore as FileStoreShape,
   hashPassword,
   listPayoutChecks,
   markPayoutCheck,
@@ -20,6 +22,7 @@ import { Geocoder } from '../src/coverage/geocoding';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { PushSender } from '../src/push/push-sender';
 import { Mailer } from '../src/email/mailer';
+import { FileStore } from '../src/files/file-store';
 import { ShopifyAdmin } from '../src/shopify/shopify-admin';
 import { setupApp } from '../src/setup-app';
 
@@ -32,6 +35,8 @@ export interface Overrides {
   eta?: EtaClient;
   push?: PushSender;
   mailer?: Mailer;
+  /** Where uploaded files go (FakeFileStore from @shiplynow/db); the database by default */
+  files?: FileStore | FileStoreShape;
 }
 
 export async function createTestApp(
@@ -46,6 +51,10 @@ export async function createTestApp(
   if (overrides.slack) builder = builder.overrideProvider(Slack).useValue(overrides.slack);
   if (overrides.push) builder = builder.overrideProvider(PushSender).useValue(overrides.push);
   if (overrides.mailer) builder = builder.overrideProvider(Mailer).useValue(overrides.mailer);
+  // TEST_FILE_STORE=fake runs a suite with every file in an in memory R2 (FakeFileStore).
+  const files =
+    overrides.files ?? (process.env.TEST_FILE_STORE === 'fake' ? new FakeFileStore() : null);
+  if (files) builder = builder.overrideProvider(FileStore).useValue(files);
   if (overrides.overpass) builder = builder.overrideProvider(Overpass).useValue(overrides.overpass);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();

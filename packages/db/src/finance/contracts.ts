@@ -25,6 +25,7 @@ import {
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { readStoredFile, storeFileBytes } from '../files';
 import { looksLike } from '../hr-documents';
 import { getSetting } from '../settings';
 import { addMonths } from './assets';
@@ -949,6 +950,8 @@ export async function addContractFile(
     throw new DomainError('file_too_large', 400);
   if (!looksLike(input.contentType, input.data))
     throw new DomainError('file_type_not_allowed', 400);
+  // The file is kept first (R2 when configured); the row follows in the transaction.
+  const stored = await storeFileBytes('contractFile', input.data, input.contentType);
   return inTransaction(db, async (tx) => {
     const contract = await tx.merchantContract.findUnique({
       where: { merchantId: input.merchantId },
@@ -961,8 +964,7 @@ export async function addContractFile(
         versionId: input.versionId ?? null,
         fileName: input.fileName,
         contentType: input.contentType,
-        sizeBytes: input.data.length,
-        data: new Uint8Array(input.data),
+        ...stored,
         uploadedById: input.actorUserId,
       },
       select: { id: true, fileName: true, sizeBytes: true },
@@ -986,6 +988,16 @@ export async function getContractFile(db: Db, merchantId: string, fileId: string
   if (!file || file.contract.merchantId !== merchantId)
     throw new DomainError('contract_file_not_found', 404);
   return file;
+}
+
+/** A contract file with its bytes, from wherever they live (the same check as getContractFile). */
+export async function readContractFile(db: Db, merchantId: string, fileId: string) {
+  const file = await getContractFile(db, merchantId, fileId);
+  return {
+    fileName: file.fileName,
+    contentType: file.contentType,
+    data: await readStoredFile(file),
+  };
 }
 
 /** Removes a file attached by mistake (merchants manage); audited. */

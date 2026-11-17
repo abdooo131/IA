@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
+import { FakeFileStore, useFileStore } from '../src/files';
 
 export const prisma = new PrismaClient();
+
+// TEST_FILE_STORE=fake runs a suite with every file kept in an in memory R2 (FakeFileStore),
+// to prove nothing depends on the bytes being in the database.
+if (process.env.TEST_FILE_STORE === 'fake') useFileStore(new FakeFileStore());
 
 /** Empties every app table. TRUNCATE skips the append only triggers, which are row level. */
 export async function resetDatabase() {

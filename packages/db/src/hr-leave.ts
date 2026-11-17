@@ -23,6 +23,7 @@ import { recordAudit } from './audit';
 import { looksLike } from './hr-documents';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { leaveDocumentRef, readStoredFile, storeFileBytes } from './files';
 import { managerOf, teamIds } from './hr-org';
 import { getSetting } from './settings';
 
@@ -991,11 +992,17 @@ export function attachLeaveDocument(
       throw new DomainError('document_type_not_allowed', 400);
     if (input.data.length === 0 || input.data.length > MAX_DOCUMENT_BYTES)
       throw new DomainError('document_too_large', 400);
+    // The file is kept first (R2 when configured), then the request in this transaction.
+    const stored = await storeFileBytes('leaveDocument', input.data, input.contentType);
     await tx.leaveRequest.update({
       where: { id: r.id },
       data: {
         documentContentType: input.contentType,
-        documentData: new Uint8Array(input.data),
+        documentData: stored.data,
+        documentStorage: stored.storage,
+        documentStorageKey: stored.storageKey,
+        documentSha256: stored.sha256,
+        documentSizeBytes: stored.sizeBytes,
         documentName: input.name?.slice(0, 200) ?? null,
       },
     });
@@ -1016,13 +1023,20 @@ export async function leaveDocument(db: Db, requestId: string) {
     select: {
       documentContentType: true,
       documentData: true,
+      documentStorage: true,
+      documentStorageKey: true,
       documentName: true,
       employee: { select: { userId: true, homeStoreId: true } },
     },
   });
-  if (!r || !r.documentContentType || !r.documentData)
-    throw new DomainError('document_not_found', 404);
-  return r;
+  const has = r && (r.documentStorage === 'db' ? r.documentData : r.documentStorageKey);
+  if (!r || !r.documentContentType || !has) throw new DomainError('document_not_found', 404);
+  return {
+    documentContentType: r.documentContentType,
+    documentName: r.documentName,
+    employee: r.employee,
+    documentData: await readStoredFile(leaveDocumentRef(r)),
+  };
 }
 
 export interface LeaveListFilter {

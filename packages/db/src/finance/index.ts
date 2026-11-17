@@ -259,6 +259,7 @@ export {
   depositHeld,
   getContract,
   getContractFile,
+  readContractFile,
   listContracts,
   merchantContractView,
   minimumForMonth,

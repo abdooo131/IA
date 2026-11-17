@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { storeFileBytes } from '../files';
 import { proofNumber } from '@shiplynow/shared';
 
 // Attachments chosen inside a finance form (docs/ARCHITECTURE.md "Finance attachments"): each
@@ -49,12 +50,12 @@ export async function saveFinanceFile(
   const max = type === 'application/pdf' ? MAX_FINANCE_PDF_BYTES : MAX_FINANCE_IMAGE_BYTES;
   if (input.data.length > max) throw new DomainError('file_too_large', 400);
   if (!looksLike(type, input.data)) throw new DomainError('file_not_matching_type', 400);
+  const file = await storeFileBytes('photo', input.data, type);
   return db.photo.create({
     data: {
       kind: 'receipt',
       contentType: type,
-      data: new Uint8Array(input.data),
-      sizeBytes: input.data.length,
+      ...file,
       fileName: cleanName(input.fileName),
       unlinked: true,
       createdById: input.actorUserId,

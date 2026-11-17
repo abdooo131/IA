@@ -16,6 +16,7 @@ import { recordAudit } from './audit';
 import { looksLike } from './hr-documents';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { readStoredFile, storeFileBytes, violationEvidenceRef } from './files';
 import { inStoreScope, type StoreScope } from './hr-leave';
 import { getSetting } from './settings';
 import { chargeRiderPenalties, chargeRiderPenalty } from './finance/rider-wallet';
@@ -390,11 +391,17 @@ export function attachViolationEvidence(
       throw new DomainError('document_type_not_allowed', 400);
     if (input.data.length === 0 || input.data.length > MAX_EVIDENCE_BYTES)
       throw new DomainError('document_too_large', 400);
+    // The file is kept first (R2 when configured), then the violation in this transaction.
+    const stored = await storeFileBytes('violationEvidence', input.data, input.contentType);
     await tx.violation.update({
       where: { id: v.id },
       data: {
         evidenceContentType: input.contentType,
-        evidenceData: new Uint8Array(input.data),
+        evidenceData: stored.data,
+        evidenceStorage: stored.storage,
+        evidenceStorageKey: stored.storageKey,
+        evidenceSha256: stored.sha256,
+        evidenceSizeBytes: stored.sizeBytes,
         evidenceName: input.name?.slice(0, 200) ?? null,
       },
     });
@@ -415,13 +422,20 @@ export async function violationEvidence(db: Db, violationId: string) {
     select: {
       evidenceContentType: true,
       evidenceData: true,
+      evidenceStorage: true,
+      evidenceStorageKey: true,
       evidenceName: true,
       employee: { select: { userId: true, homeStoreId: true } },
     },
   });
-  if (!v || !v.evidenceContentType || !v.evidenceData)
-    throw new DomainError('document_not_found', 404);
-  return v;
+  const has = v && (v.evidenceStorage === 'db' ? v.evidenceData : v.evidenceStorageKey);
+  if (!v || !v.evidenceContentType || !has) throw new DomainError('document_not_found', 404);
+  return {
+    evidenceContentType: v.evidenceContentType,
+    evidenceName: v.evidenceName,
+    employee: v.employee,
+    evidenceData: await readStoredFile(violationEvidenceRef(v)),
+  };
 }
 
 /** The person appeals once, with a reason, within hr.appeal_days of the recording. */

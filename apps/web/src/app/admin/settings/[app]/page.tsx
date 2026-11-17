@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { FileStorageStatus } from '@/components/admin/FileStorageStatus';
 import { SettingsEditor } from '@/components/admin/SettingsEditor';
 import { apiGet } from '@/lib/api-server';
 import { type AppId, SETTINGS_APPS } from '@/lib/apps';
@@ -20,6 +21,7 @@ export default async function AppSettingsPage({ params }: { params: Promise<{ ap
     <>
       <h1 className="text-h2">{ta('settingsTitle', { app: ta(`names.${app}`) })}</h1>
       <p className="mt-1 max-w-2xl text-body-sm text-text-muted">{t('intro')}</p>
+      {app === 'system' && <FileStorageStatus />}
       <SettingsEditor initial={settings} app={app as AppId} />
     </>
   );

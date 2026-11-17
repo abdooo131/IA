@@ -1,6 +1,7 @@
 # Backups and restore
 
-Two layers protect the data.
+Two layers protect the data. When files are kept in Cloudflare R2, a third one protects them
+(section 3): the database copies below hold only the files still in the database.
 
 ## 1. Neon's own history (minutes to a day back)
 
@@ -32,6 +33,32 @@ it, check the next morning that a **Database backup** run appeared.
 A backup is only proven by a restore: after setting it up, and again every few months,
 restore one copy into a throwaway Neon branch with the steps below and check it. A backup
 that was never restored must be treated as untested.
+
+## 3. Files in Cloudflare R2
+
+Once R2 is configured (docs/DEPLOY.md), photos, receipts, proofs of transfer, signed contracts
+and HR files are objects in the private R2 bucket, and their database rows only name them
+(`storage = r2`, `storage_key`). `pg_dump` does not copy R2 objects, so the nightly database
+copy holds the rows but not those bytes. They are protected this way:
+
+* The app never overwrites or edits an object: every upload gets a new random key, and a
+  replaced file is a new object.
+* The app deletes an object only when no row has named it for `files.orphan_keep_days` (30 by
+  default, as long as the nightly copies are kept), counted from the first hourly check that
+  found it unused. So a database restored from any kept copy still finds every file it names.
+  Keep this setting at least as long as the database copies are kept.
+* Recommended: an R2 **bucket lock rule** on the whole bucket with a 30 day retention
+  (bucket **Settings**, **Bucket lock rules**). Nobody, including a leaked token or a mistake,
+  can then delete or overwrite an object younger than 30 days; the app leaves a delete the
+  bucket refuses for a later run.
+* Optional, for a copy outside the bucket: a second bucket (another account or location) filled
+  by a scheduled copy, for example `rclone sync` with a read only token on the live bucket.
+  Worth it once the files matter for audits (signed contracts, proofs of transfer); a bucket
+  lock is enough for the pilot.
+
+Restoring the database (below) with R2 configured: point the restored service at the same
+bucket with the same four R2 values. Files younger than the copy are there (bucket lock and the
+30 day wait); nothing has to be restored on the R2 side.
 
 ## Restoring a daily copy
 

@@ -497,6 +497,26 @@ export const SETTING_DEFINITIONS = {
       'Days a finished Shopify call (sent, or given up after its last try) is kept before the daily job deletes it',
     override: 'none',
   },
+  'files.move_enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'While R2 is configured, the background job copies files still kept in the database to R2 (1) or leaves them (0)',
+    override: 'none',
+  },
+  'files.orphan_keep_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 30,
+    description:
+      'Days an R2 file no record names is kept before it is deleted (at least as long as database backups are kept)',
+    override: 'none',
+  },
+  'files.move_batch_size': {
+    schema: z.number().int().min(1).max(500),
+    default: 20,
+    description: 'Files the background job copies to R2 in one run (every 30 seconds)',
+    override: 'none',
+  },
   'cleanup.run_hour': {
     schema: z.number().int().min(0).max(23),
     default: 3,

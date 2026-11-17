@@ -83,6 +83,29 @@
     "6": "السبت"
   },
   "admin": {
+    "fileStorage": {
+      "title": "تخزين الملفات",
+      "database": "الملفات المرفوعة محفوظة في قاعدة البيانات. حط قيم R2 الأربعة على السيرفر عشان تتحفظ في Cloudflare R2.",
+      "r2Moving": "الملفات الجديدة بتتحفظ في Cloudflare R2. الملفات اللي لسه في قاعدة البيانات بتتنقل هناك شوية شوية في الخلفية.",
+      "r2Paused": "الملفات الجديدة بتتحفظ في Cloudflare R2. نقل الملفات القديمة متوقف (إعداد نقل الملفات).",
+      "inDatabase": "في قاعدة البيانات",
+      "inR2": "في R2",
+      "done": "اتنقل",
+      "percent": "{value}%",
+      "failed": "{count, plural, one {ملف واحد فشل في الفحص وهيفضل في قاعدة البيانات؛ شوف التنبيهات} other {# ملفات فشلت في الفحص وهتفضل في قاعدة البيانات؛ شوف التنبيهات}}",
+      "kind": "الملفات",
+      "megabytes": "ميجابايت في قاعدة البيانات",
+      "kinds": {
+        "photo": "الصور والإيصالات",
+        "payoutProof": "إثباتات التحويل",
+        "employeePhoto": "صور الموظفين",
+        "employeeDocument": "مستندات الموظفين",
+        "contractFile": "العقود الموقعة",
+        "hireDraftFile": "ملفات التعيين الجديد",
+        "leaveDocument": "مستندات الإجازات",
+        "violationEvidence": "إثباتات المخالفات"
+      }
+    },
     "nav": {
       "overview": "نظرة عامة",
       "zones": "المناطق",
@@ -373,6 +396,7 @@
         "transfer_short_sent": "التحويل {reference} خرج وناقص قطع",
         "transfer_short_received": "التحويل {reference} وصل وناقص قطع",
         "return_short": "المرتجع {reference} اتقفل وفيه قطع مش موجودة",
+        "file_move_failed": "ملف في {table} ما اتنقلش إلى R2 ({problem, select, size_mismatch {الحجم مختلف} sha256_mismatch {المحتوى مختلف} other {مش موجود بعد الرفع}})؛ هيفضل في قاعدة البيانات. علّمه كمتعامل معه عشان يتجرب تاني",
         "startup_flag": "{state, select, jobs_disabled {المهام الخلفية متوقفة بسبب {flag}: مفيش تنبيهات تأخير ولا مزامنة شوبيفاي ولا إيميلات ولا إشعارات} fresh_start_done {FRESH_START لسه متفعّل مع إن البداية الجديدة اتعملت؛ شيله} fresh_start_wrong_word {FRESH_START متفعّل من غير كلمة التأكيد؛ ما اتمسحش حاجة؛ شيله} fresh_start_refused {البداية الجديدة اترفضت أو فشلت وما اتغيرش حاجة؛ راجع سجل السيرفر وشيل FRESH_START} demo_load_done {DEMO_LOAD لسه متفعّل مع إن شهر التجربة اتحمّل؛ شيله} demo_not_loaded {DEMO_LOAD متفعّل لكن بيانات التجربة مش هتتحمّل على القاعدة دي؛ شيله} other {{flag} لسه متفعّل على السيرفر}}",
         "cod_risk_customer": "طلب دفع عند الاستلام من عميل عالي المخاطرة",
         "document_expiring": "{nameEn}: مستند بينتهي يوم {expiresOn}",
@@ -410,6 +434,7 @@
         "transfer_short_sent": "تحويل خرج ناقص",
         "transfer_short_received": "تحويل وصل ناقص",
         "return_short": "مرتجع اتقفل بالناقص",
+        "file_move_failed": "ملف ما اتنقلش إلى R2",
         "startup_flag": "مفتاح تشغيل لسه متفعّل",
         "cod_risk_customer": "عميل كاش عالي المخاطرة",
         "document_expiring": "مستند قرب ينتهي",
@@ -526,6 +551,9 @@
         "push__enabled": "إشعارات الهاتف والمتصفح مفعّلة (1) أو متوقفة (0)",
         "shopify__log_retention_days": "مدة الاحتفاظ بسجل شوبيفاي (أيام)",
         "shopify__outbox_retention_days": "مدة الاحتفاظ بطلبات شوبيفاي المنتهية (أيام)",
+        "files__move_enabled": "نقل الملفات المحفوظة في قاعدة البيانات إلى R2 (1 تشغيل، 0 إيقاف)",
+        "files__orphan_keep_days": "مدة الاحتفاظ بملفات R2 غير المستخدمة (أيام، على الأقل مدة النسخ الاحتياطية)",
+        "files__move_batch_size": "عدد الملفات المنقولة إلى R2 في كل مرة",
         "cleanup__run_hour": "التنظيف الليلي يشتغل بعد الساعة (بتوقيت القاهرة)",
         "cleanup__refresh_token_days": "حذف جلسات الدخول المنتهية بعد (أيام)",
         "cleanup__geocode_not_found_days": "حذف العناوين اللي جوجل ملقاهاش بعد (أيام)",

@@ -2,6 +2,7 @@ import type { OrderStatus } from '@prisma/client';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { FILE_REF_SELECT, readStoredFile } from './files';
 import { getSetting } from './settings';
 
 // The customer's public tracking page (/t/<token>). It shows only what the customer already
@@ -113,10 +114,11 @@ export async function getTrackingPhoto(db: Db, token: string) {
   const order = await findByToken(db, token);
   const photoId = order.status === 'delivered' ? order.deliveries[0]?.proofPhotoId : null;
   if (!photoId) throw new DomainError('not_found', 404);
-  return db.photo.findUniqueOrThrow({
+  const photo = await db.photo.findUniqueOrThrow({
     where: { id: photoId },
-    select: { contentType: true, data: true },
+    select: { contentType: true, ...FILE_REF_SELECT },
   });
+  return { contentType: photo.contentType, data: await readStoredFile(photo) };
 }
 
 /**

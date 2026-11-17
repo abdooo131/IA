@@ -11,6 +11,7 @@ import { HrModule } from './hr/hr.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MerchantModule } from './merchant/merchant.module';
 import { PhotosModule } from './photos/photos.module';
+import { FilesModule } from './files/files.module';
 import { RiderModule } from './rider/rider.module';
 import { ShopifyModule } from './shopify/shopify.module';
 import { StoreModule } from './store/store.module';
@@ -41,6 +42,7 @@ import { UsersController } from './users/users.controller';
     AdminModule,
     StoreModule,
     MerchantModule,
+    FilesModule,
     PhotosModule,
     RiderModule,
     JobsModule,

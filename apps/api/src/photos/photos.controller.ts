@@ -1,6 +1,6 @@
 import { Controller, Get, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DomainError, managerOf, type Prisma, savePhoto } from '@shiplynow/db';
+import { DomainError, managerOf, type Prisma, readStoredFile, savePhoto } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   canDo,
@@ -108,6 +108,9 @@ export class PhotosController {
     const photo = await this.prisma.photo.findUnique({ where: { id }, include: PHOTO_LINKS });
     if (!photo || !(await this.mayOpen(photo, user, req as AuthedRequest)))
       throw new NotFoundException({ error: 'photo_not_found' });
+    // The bytes come from wherever the file lives (the row, or the private R2 bucket), only
+    // after the access check above.
+    const data = await readStoredFile(photo);
     res.setHeader('content-type', photo.contentType);
     // A PDF opens in the browser under its own name (finance attachments keep it).
     if (photo.fileName)
@@ -116,7 +119,7 @@ export class PhotosController {
         `inline; filename*=UTF-8''${encodeURIComponent(photo.fileName)}`,
       );
     res.setHeader('cache-control', 'private, max-age=86400');
-    res.send(Buffer.from(photo.data));
+    res.send(data);
   }
 
   private async mayOpen(photo: PhotoWithLinks, user: AccessTokenClaims, req: AuthedRequest) {

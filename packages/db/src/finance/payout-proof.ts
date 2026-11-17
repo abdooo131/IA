@@ -16,6 +16,7 @@ import {
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { readStoredFile, storeFileBytes } from '../files';
 import { looksLike } from '../hr-documents';
 import { merchantStatement } from './reports';
 
@@ -242,6 +243,8 @@ export async function addPayoutProof(
     throw new DomainError('file_type_not_allowed', 400);
   const reference = input.reference.trim();
   if (reference.length < 2) throw new DomainError('pot_required', 400);
+  // The file is kept first (R2 when configured); the row follows in the transaction.
+  const stored = await storeFileBytes('payoutProof', input.data, input.contentType);
   return inTransaction(db, async (tx) => {
     const payout = await tx.payout.findUnique({ where: { id: input.payoutId } });
     if (!payout) throw new DomainError('payout_not_found', 404);
@@ -262,8 +265,7 @@ export async function addPayoutProof(
     const file = {
       fileName: input.fileName,
       contentType: input.contentType,
-      sizeBytes: input.data.length,
-      data: new Uint8Array(input.data),
+      ...stored,
       amountPiastres: input.amountPiastres,
       reference,
       uploadedById: input.actorUserId,
@@ -326,7 +328,7 @@ export async function getPayoutProofFile(db: Db, payoutId: string, merchantId?: 
   return {
     fileName: `${proofNumber(proof.number)}-${proof.fileName}`,
     contentType: proof.contentType,
-    data: proof.data,
+    data: await readStoredFile(proof),
   };
 }
 

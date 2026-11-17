@@ -10,6 +10,7 @@ import {
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { FILE_REF_SELECT, readStoredFile } from './files';
 import {
   BASE_URL,
   egpText,
@@ -369,9 +370,9 @@ async function resolveAttachment(db: Db, ref: string, render?: AttachmentRendere
   if (ref.startsWith('payout_proof:')) {
     const proof = await db.payoutProof.findUnique({
       where: { payoutId: ref.slice('payout_proof:'.length) },
-      select: { data: true },
+      select: FILE_REF_SELECT,
     });
-    if (proof) return Buffer.from(proof.data);
+    if (proof) return readStoredFile(proof);
   } else if (render) {
     const made = await render(ref);
     if (made) return made;

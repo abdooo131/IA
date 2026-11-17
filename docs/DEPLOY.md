@@ -98,6 +98,45 @@ variables nothing is sent: the emails wait in the outbox and the screens say ema
    at most an hour, 10 tries), then shows Failed with an `email_failed` alert; finance can send
    it again from the outbox.
 
+### File storage in Cloudflare R2 (optional, recommended before real use)
+
+Proof photos, receipts, proofs of transfer, signed contracts and HR files are kept in the
+database until R2 is set up. The free Neon database holds 1 GB, so move them to R2 before the
+files grow. Nothing else changes: the same people open the same files.
+
+1. In the Cloudflare dashboard, **R2 Object Storage**, **Create bucket**: a name such as
+   `shiplynow-live-files` (one bucket per database: never share it between staging and live),
+   location automatic, default storage class. Leave public access **off** (no r2.dev address,
+   no custom domain): the app streams every file itself after its access checks.
+2. **R2 Object Storage**, **Manage API tokens**, **Create API token**: permission
+   **Object Read & Write**, **Apply to specific buckets only** with that one bucket, no expiry
+   (or a date you will remember to renew). Copy the **Access Key ID** and the
+   **Secret Access Key** at once (the secret is shown only once) into your password manager.
+3. Note the **Account ID** (R2 overview page, 32 characters).
+4. Protect the files (see docs/BACKUP.md, section 3): **Settings** of the bucket, **Bucket lock
+   rules**, add a rule for all objects with a retention of 30 days.
+5. In Render, open the `shiplynow` service, **Environment**, and add all four:
+
+   | Setting | What to enter |
+   | --- | --- |
+   | `R2_ACCOUNT_ID` | the 32 character account id |
+   | `R2_ACCESS_KEY_ID` | the token's Access Key ID |
+   | `R2_SECRET_ACCESS_KEY` | the token's Secret Access Key (secret: never in git or a chat) |
+   | `R2_BUCKET` | the bucket name, for example `shiplynow-live-files` |
+
+6. Save; Render redeploys. The server log says "Files are kept in Cloudflare R2" (never the
+   keys). With only some of the four set the API refuses to start and names the missing ones.
+7. New files now go to R2. The files already in the database are copied in the background
+   (20 every 30 seconds, each read back and compared before its database copy is emptied).
+   Watch it in **Settings**, **System**, **Configuration**, File storage: In the database goes
+   down to 0. The settings there pause the copy (`files.move_enabled`) or change its pace
+   (`files.move_batch_size`). A file whose copy did not match stays in the database with a
+   "File not moved to R2" alert; marking the alert handled tries it again.
+8. Once In the database is 0, Neon's space is freed over time by its own autovacuum; nothing to do.
+
+To go back to the database for new files, remove the four values; files already in R2 stay
+there and still need the values to be read, so do not delete the bucket or the token.
+
 ## 3. Using it
 
 - It is https, so the **phone camera** works for scanning.

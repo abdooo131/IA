@@ -79,7 +79,8 @@ Modules under apps/api/src:
     orders      order intake shared by merchant and admin
     coverage    public coverage and neighbourhood search, delivery decision service
     tracking    public tracking page data and ratings
-    photos      proof photos (stored in Postgres)
+    photos      proof photos and receipts (bytes through the FileStore: Postgres or R2)
+    files       FileStore boundary (R2FileStore with aws4fetch, or the database), file status
     finance     accounting: ledger, cash, payouts, bills, purchase orders, taxes, payroll run,
                 invoices, ETA, bank matching, reports, closing
     packaging   packaging items, stock per store, recipes, buying, adjusting and counting
@@ -424,6 +425,10 @@ one instance acts, and each has an idempotency key so running twice changes noth
       proposals past their last day expired)
     sales commission (once a Cairo day, from the second day of a month: last month's drafts,
       key commission:<rep>:<month>)
+    file mover (every 30 seconds while R2 is configured and files.move_enabled is 1:
+      files.move_batch_size files copied from the database to R2, each checked, own lock)
+    orphan file clean up (hourly while R2 is configured: objects no row names are noted, then
+      deleted files.orphan_keep_days later)
 
 ## 11. Integrations
 
@@ -478,6 +483,36 @@ one instance acts, and each has an idempotency key so running twice changes noth
   doubling up to an hour, and after 10 tries the row is failed with one email_failed alert.
   Without SMTP nothing is sent and the outbox (/finance/emails) and the wallet say so. Only the
   server's answer code is stored as the error, never addresses or bodies.
+* File storage (optional, owner 2026-11-17): uploaded files (photos table: proof photos,
+  receipts, Basata receipts; payout_proofs; employee_photos; employee_documents;
+  merchant_contract_files; hire_draft_files; leave_requests.document_data;
+  violations.evidence_data) go through the FileStore boundary (packages/db/src/files: the
+  FileStore interface, DbFileStore, FakeFileStore for tests; apps/api/src/files: R2FileStore and
+  the FilesModule that hands the configured store to @shiplynow/db at start). Without
+  R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET (all four or none, checked
+  by the env schema) files stay in their rows as before. With them, R2FileStore talks to the S3
+  compatible API at https://<account>.r2.cloudflarestorage.com, signed with SigV4 by aws4fetch
+  (a few kilobytes over Node's fetch, the client in Cloudflare's own R2 docs, instead of the
+  AWS SDK). Every file row says where its bytes are: storage db (the bytea column) or r2
+  (storage_key), with sha256 and size; a CHECK makes sure the bytes are always somewhere.
+  storeFileBytes writes a new file's object first under an unguessable key
+  (<kind>/<yyyy>/<mm>/<128 random bits>, never a name), then the caller writes the row in the
+  transaction it always used; readStoredFile is the one reader, called only after each route's
+  own access check (GET /photos/:id rules, HR scope, contract readers, payout proofs, the
+  tracking page, emails that attach the proof, the audit pack zip). The bucket is private: the
+  API streams the bytes with the same content type and download name as before, never a public
+  or presigned link. Objects whose row never committed (a rolled back upload) or whose row was
+  deleted (a replaced photo, a removed contract copy, a finished hire draft, a fresh start) are
+  noted by the hourly orphan clean up in file_orphans once older than a day and deleted
+  files.orphan_keep_days (30) after that, so a database restored from a kept backup finds its
+  files (docs/BACKUP.md); a key is looked up in every file table, since a hire moves a draft's
+  key to the employee's file. One bucket per database: the
+  clean up would delete another database's objects. The mover (moveFilesToR2, advisory lock
+  735071) copies database files a few at a time, reads each back, compares size and SHA-256 and
+  only then sets storage r2 and empties the column in the same transaction; a failed check leaves
+  the row as it was with one file_move_failed alert (retried once marked handled). The paid
+  payout proof trigger allows that one change. A test fails when a new bytea column is not in
+  FILE_SLOTS. Progress (files in the database and in R2 per kind) is on System > Configuration.
 * Google geocoding (optional): only used when GOOGLE_MAPS_API_KEY is set.
 * OpenStreetMap: map tiles in the admin map; area data imported through Overpass.
 
@@ -486,7 +521,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
 One .env at the repo root, documented in .env.example. Key variables: DATABASE_URL,
 DATABASE_NAME, JWT_ACCESS_SECRET, API_PORT, API_URL, WEB_ORIGIN, SEED_ON_START, SEED_ADMIN_*,
 SEED_DEMO_PASSWORD, DEMO_LOAD, FRESH_START, SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*,
-VAPID_*, SMTP_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL, JOBS_ENABLED, API_HEAP_MB / WEB_HEAP_MB. Business values (SLA minutes, fees, capacity, payroll rates, HR rules) are not in
+VAPID_*, SMTP_*, R2_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL, JOBS_ENABLED, API_HEAP_MB / WEB_HEAP_MB. Business values (SLA minutes, fees, capacity, payroll rates, HR rules) are not in
 env: they live in the settings table and are edited from each app's Configuration page.
 
 ## 13. Testing
@@ -505,7 +540,8 @@ PNGs were rendered once with Playwright.
 
 * Free Render server: slow, sleeps when idle, 15 minute start limit; Shopify rate calls need a
   server that never sleeps (paid plan before launch).
-* Free Neon plan: 1 GB; proof photos and documents are stored in the database.
+* Free Neon plan: 1 GB; proof photos and documents are stored in the database until R2 is
+  configured (then in the R2 bucket, moved over by the file mover).
 * Background jobs and the sign in rate limit live in one API process (fine for one instance).
 * The logo files are traced from the brand guide images until vector files arrive.
 * Each merchant's Shopify app must be redeployed to receive widget changes.

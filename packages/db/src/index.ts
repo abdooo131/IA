@@ -52,6 +52,7 @@ export {
   type PickInput,
 } from './orders';
 export { MAX_PHOTO_BYTES, savePhoto } from './photos';
+export * from './files';
 export {
   forMerchant,
   getOrderDetail,

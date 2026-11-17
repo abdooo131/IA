@@ -12,6 +12,7 @@ import {
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { readStoredFile, storeFileBytes } from './files';
 import { completeDocumentTasks } from './hr-checklists';
 import { assertFileInScope, type StoreScope } from './hr';
 import { getSetting } from './settings';
@@ -437,14 +438,15 @@ export async function addEmployeeDocument(db: Db, input: UploadInput) {
     if (previous)
       await tx.employeeDocument.update({ where: { id: previous.id }, data: { isCurrent: false } });
     const now = new Date();
+    // The file is kept first (R2 when configured), then its row in this transaction.
+    const stored = await storeFileBytes('employeeDocument', input.data, input.contentType);
     const doc = await tx.employeeDocument.create({
       data: {
         employeeId: input.employeeId,
         typeId: type.id,
         title: input.title || null,
         contentType: input.contentType,
-        data: new Uint8Array(input.data),
-        sizeBytes: input.data.length,
+        ...stored,
         issuedOn: toDate(input.issuedOn),
         expiresOn: toDate(input.expiresOn),
         version: previous ? previous.version + 1 : 1,
@@ -559,7 +561,7 @@ export async function getEmployeeDocument(
   if (!doc) throw new DomainError('document_not_found', 404);
   if (doc.type.confidential && !input.confidential)
     throw new DomainError('document_not_found', 404);
-  return doc;
+  return { ...doc, data: await readStoredFile(doc) };
 }
 
 /**
@@ -764,22 +766,19 @@ export async function setEmployeePhoto(
   if (input.data.length === 0 || input.data.length > MAX_PHOTO_BYTES)
     throw new DomainError('photo_too_large', 400);
   if (!looksLike(input.contentType, input.data)) throw new DomainError('photo_not_readable', 400);
+  // The file is kept first (R2 when configured); a replaced photo's object is removed by the
+  // orphan clean up once no row names it.
+  const stored = await storeFileBytes('employeePhoto', input.data, input.contentType);
   return inTransaction(db, async (tx: Tx) => {
     await assertFileInScope(tx, input.employeeId, input.scope);
     const before = await tx.employeePhoto.findUnique({
       where: { employeeId: input.employeeId },
       select: { sizeBytes: true },
     });
-    const bytes = new Uint8Array(input.data);
     const photo = await tx.employeePhoto.upsert({
       where: { employeeId: input.employeeId },
-      create: {
-        employeeId: input.employeeId,
-        contentType: input.contentType,
-        data: bytes,
-        sizeBytes: input.data.length,
-      },
-      update: { contentType: input.contentType, data: bytes, sizeBytes: input.data.length },
+      create: { employeeId: input.employeeId, contentType: input.contentType, ...stored },
+      update: { contentType: input.contentType, ...stored },
       select: { updatedAt: true },
     });
     await recordAudit(tx, {
@@ -797,7 +796,7 @@ export async function setEmployeePhoto(
 export async function getEmployeePhoto(db: Db, employeeId: string) {
   const photo = await db.employeePhoto.findUnique({ where: { employeeId } });
   if (!photo) throw new DomainError('photo_not_found', 404);
-  return photo;
+  return { ...photo, data: await readStoredFile(photo) };
 }
 
 export function deleteEmployeePhoto(

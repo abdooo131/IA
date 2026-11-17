@@ -1,8 +1,9 @@
-import type { Prisma } from '@prisma/client';
+import type { FileStorage, Prisma } from '@prisma/client';
 import { addDays, cairoDay, cairoDayStart, isCalendarDay } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { readStoredFile } from '../files';
 import { packageGross, packageInForce } from '../hr-pay';
 import { addMonths } from './assets';
 import { post } from './ledger';
@@ -542,9 +543,21 @@ export async function journalLines(db: Db, input: { from: string; to: string }) 
 }
 
 /** Receipt photos attached to entries between two Cairo days (for the audit pack). */
-export async function receiptPhotos(db: Db, input: { from: string; to: string }) {
-  return db.$queryRaw<{ number: number; photo_id: string; content_type: string; data: Buffer }[]>`
-    SELECT e.number, p.id AS photo_id, p.content_type, p.data
+export async function receiptPhotos(
+  db: Db,
+  input: { from: string; to: string },
+): Promise<{ number: number; photo_id: string; content_type: string; data: Buffer }[]> {
+  const rows = await db.$queryRaw<
+    {
+      number: number;
+      photo_id: string;
+      content_type: string;
+      data: Uint8Array | null;
+      storage: FileStorage;
+      storage_key: string | null;
+    }[]
+  >`
+    SELECT e.number, p.id AS photo_id, p.content_type, p.data, p.storage, p.storage_key
     FROM finance_receipts r
       JOIN photos p ON p.id = r.photo_id
       JOIN ledger_entries e ON e.id = COALESCE(
@@ -554,6 +567,16 @@ export async function receiptPhotos(db: Db, input: { from: string; to: string })
     WHERE e.occurred_at >= ${cairoDayStart(input.from)}
       AND e.occurred_at < ${cairoDayStart(addDays(input.to, 1))}
     ORDER BY e.number`;
+  // The bytes come from wherever each file lives (the row, or R2), one file at a time.
+  const out = [];
+  for (const r of rows)
+    out.push({
+      number: r.number,
+      photo_id: r.photo_id,
+      content_type: r.content_type,
+      data: await readStoredFile({ storage: r.storage, storageKey: r.storage_key, data: r.data }),
+    });
+  return out;
 }
 
 /** The gross of every package in force today for active employees on our payroll. */
