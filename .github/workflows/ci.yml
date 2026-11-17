@@ -34,6 +34,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Known advisories in production packages are listed in the log; they never fail the run.
+      - name: Audit production dependencies (report only)
+        run: pnpm audit --prod --audit-level high
+        continue-on-error: true
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --filter @shiplynow/shared --filter @shiplynow/web test

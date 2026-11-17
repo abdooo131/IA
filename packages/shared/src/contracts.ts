@@ -310,13 +310,9 @@ export const CONTRACT_PRODUCT_PRICES_MAX = 5000;
 
 /** One row of a product prices file: sku, price_egp (other columns are ignored). */
 export const contractProductPriceRowSchema = z.object({
-  sku: z
-    .string({ required_error: 'sku_required', invalid_type_error: 'sku_required' })
-    .trim()
-    .min(1, 'sku_required')
-    .max(64),
+  sku: z.string({ error: 'sku_required' }).trim().min(1, 'sku_required').max(64),
   price_egp: z
-    .union([z.string(), z.number()], { errorMap: () => ({ message: 'invalid_price' }) })
+    .union([z.string(), z.number()], { error: 'invalid_price' })
     .transform((value, ctx) => {
       const piastres = egpTextToPiastres(String(value));
       if (piastres === null) {

@@ -78,7 +78,8 @@ const text = (max: number) =>
     .max(max)
     .nullable()
     .optional()
-    .transform((v) => (v === undefined ? undefined : v || null));
+    .transform((v) => (v === undefined ? undefined : v || null))
+    .optional();
 const count = z.number().int().min(0).max(10_000_000);
 /** Money in piastres (integer, never a float) */
 const piastres = z.number().int().min(0).max(100_000_000_000);

@@ -16,3 +16,10 @@ onlyBuiltDependencies:
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - '@scarf/scarf'
+
+# Security fixes for packages pinned deep inside frameworks.
+# next 15 pins postcss 8.4.31 and prisma 6 pins deepmerge-ts 7; both have high advisories
+# with fixes only in newer versions. Remove an override once its parent ships the fix.
+overrides:
+  'next>postcss': ^8.5.33
+  '@prisma/config>deepmerge-ts': ^8.0.2
