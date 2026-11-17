@@ -33,13 +33,14 @@ const KNOWN = [
 
 /** Shared message state and code lookup for the staff screens. */
 export function useStoreAction(storeId: string) {
-  const t = useTranslations();
+  const t = useTranslations('store.errors');
+  const ts = useTranslations('scan');
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const fail = (error: string) =>
     setMessage({
-      text: t(`store.errors.${KNOWN.includes(error) ? error : 'generic'}`),
+      text: t(KNOWN.includes(error) ? error : 'generic'),
       error: true,
     });
   const ok = (text: string) => setMessage({ text, error: false });
@@ -50,20 +51,20 @@ export function useStoreAction(storeId: string) {
     );
     if (result.ok) return result.data;
     if (result.error === 'code_not_found')
-      setMessage({ text: t('scan.notFound', { code }), error: true });
+      setMessage({ text: ts('notFound', { code }), error: true });
     else fail(result.error);
     return null;
   }
 
   async function lookupSku(code: string) {
     const found = await lookup(code);
-    if (found?.kind === 'bin') setMessage({ text: t('scan.notProduct', { code }), error: true });
+    if (found?.kind === 'bin') setMessage({ text: ts('notProduct', { code }), error: true });
     return found?.kind === 'sku' ? found.sku : null;
   }
 
   async function lookupBin(code: string) {
     const found = await lookup(code);
-    if (found?.kind === 'sku') setMessage({ text: t('scan.notBin', { code }), error: true });
+    if (found?.kind === 'sku') setMessage({ text: ts('notBin', { code }), error: true });
     return found?.kind === 'bin' ? found.bin : null;
   }
 

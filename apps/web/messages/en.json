@@ -26,6 +26,7 @@
     "errorTitle": "Something went wrong",
     "errorBody": "This page could not be shown. Try again, or go back to your home page.",
     "tryAgain": "Try again",
+    "help": "Help",
     "loading": "Loading"
   },
   "roles": {
@@ -525,6 +526,11 @@
         "push__enabled": "Phone and browser notifications on (1) or off (0)",
         "shopify__log_retention_days": "Keep the Shopify log for (days)",
         "shopify__outbox_retention_days": "Keep finished Shopify calls for (days)",
+        "cleanup__run_hour": "Nightly clean up runs after (Cairo hour)",
+        "cleanup__refresh_token_days": "Delete expired sign in sessions after (days)",
+        "cleanup__geocode_not_found_days": "Delete addresses Google could not find after (days)",
+        "cleanup__email_sent_days": "Delete sent merchant emails after (days)",
+        "cleanup__notification_read_days": "Delete read merchant notifications after (days)",
         "stock__packaging_low_units": "Packaging low alert at (units)",
         "finance__po_bill_tolerance_bp": "Bill above purchase order allowed by (%)",
         "sales__auto_assign": "Give new leads to reps in turn (1 on, 0 off)",
@@ -10589,6 +10595,7 @@
     "deleteFavorite": "Delete {name}",
     "range": "{from}–{to} of {total}",
     "grouped": "{count} records in {groups} groups",
+    "truncated": "Only the newest {max} were looked at: choose days, a store or a filter to see older ones.",
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "perPage": "Per page",

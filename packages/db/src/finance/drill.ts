@@ -21,6 +21,7 @@ import {
   type ListDef,
   type ListQuery,
   type ListResult,
+  type ListState,
   parseListState,
   runList,
 } from '@shiplynow/shared';
@@ -355,7 +356,15 @@ async function linesWhere(
   return { where, naturalDebit };
 }
 
-async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
+async function loadLedgerLines(
+  db: Db,
+  where: Prisma.LedgerLineWhereInput,
+  page: {
+    orderBy?: Prisma.LedgerLineOrderByWithRelationInput[];
+    skip?: number;
+    take?: number;
+  } = {},
+) {
   const [rows, name, stores, merchants, riders, tags] = await Promise.all([
     db.ledgerLine.findMany({
       where,
@@ -374,8 +383,9 @@ async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
           select: { number: true, kind: true, memo: true, order: { select: { number: true } } },
         },
       },
-      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
-      take: DRILL_MAX_LINES,
+      orderBy: page.orderBy ?? [{ occurredAt: 'desc' }, { id: 'desc' }],
+      skip: page.skip,
+      take: page.take ?? DRILL_MAX_LINES,
     }),
     ownerNames(db),
     db.darkStore.findMany({ select: { id: true, code: true } }),
@@ -460,6 +470,34 @@ export const LEDGER_LINES_DEF: ListDef<LedgerLineRow> = {
   sums: LEDGER_LINE_SUMS,
 };
 
+/**
+ * Database twins of the ledger lines' filters (review step 4): the same tests as
+ * LEDGER_LINES_DEF's, so the database can count, sum and page the lines itself.
+ */
+const LEDGER_LINE_WHERE: Record<keyof typeof LEDGER_LINE_FILTERS, Prisma.LedgerLineWhereInput> = {
+  debit: { amountPiastres: { gt: 0 } },
+  credit: { amountPiastres: { lt: 0 } },
+  deliveries: { entry: { kind: { in: [...(KIND_FAMILIES.deliveries ?? [])] } } },
+  cash: { entry: { kind: { in: [...(KIND_FAMILIES.cash ?? [])] } } },
+  payouts: { entry: { kind: { in: [...(KIND_FAMILIES.payouts ?? [])] } } },
+  bills: { entry: { kind: { in: [...(KIND_FAMILIES.bills ?? [])] } } },
+  manual: { entry: { kind: { in: [...(KIND_FAMILIES.manual ?? [])] } } },
+  with_order: { entry: { orderId: { not: null } } },
+  no_store: { darkStoreId: null },
+};
+
+/** The filters of a state as database conditions: OR inside a group, AND across groups. */
+function ledgerFilterWhere(state: ListState): Prisma.LedgerLineWhereInput[] {
+  const groups = new Map<string, Prisma.LedgerLineWhereInput[]>();
+  for (const key of state.filters) {
+    const twin = LEDGER_LINE_WHERE[key as keyof typeof LEDGER_LINE_WHERE];
+    const group = LEDGER_LINES_DEF.filters[key]?.group;
+    if (!twin || !group) continue;
+    groups.set(group, [...(groups.get(group) ?? []), twin]);
+  }
+  return [...groups.values()].map((ors) => ({ OR: ors }));
+}
+
 /** For tests: the shared keys and the definition agree. */
 export function ledgerLinesGaps(): string[] {
   const gaps: string[] = [];
@@ -482,16 +520,74 @@ export async function ledgerLinesList(
   query: ListQuery,
   scope: ListScope,
   now: Date = new Date(),
+  /** For tests: every line of the slice through the shared engine, as before */
+  options: { memory?: boolean } = {},
 ): Promise<
   ListResult<LedgerLineRow> & { meta: { naturalDebit: boolean | null; truncated: boolean } }
 > {
-  const { where, naturalDebit } = await linesWhere(db, q, scope);
-  const rows = await loadLedgerLines(db, where);
+  const { where: slice, naturalDebit } = await linesWhere(db, q, scope);
   const state = parseListState(query, {
     filters: Object.keys(LEDGER_LINE_FILTERS),
     groupBys: LEDGER_LINE_GROUPS,
     sorts: LEDGER_LINE_SORTS,
   });
+  // The filters always narrow in the database (the engine applies them again in memory).
+  const where: Prisma.LedgerLineWhereInput = { AND: [slice, ...ledgerFilterWhere(state)] };
+  const all = query.all === '1';
+  const grouped = !all && state.groupBy.some((g) => LEDGER_LINES_DEF.groupBys[g]);
+  const sort = state.sort && LEDGER_LINES_DEF.sorts[state.sort] ? state.sort : 'day';
+  // Without typed search (which reads account names made in code), grouping or a sort the
+  // database cannot copy, the database counts, sums and pages every line of the slice.
+  if (!options.memory && !state.q.trim() && !grouped && sort === 'day') {
+    const desc = state.sort === 'day' ? state.desc : true;
+    const [total, debit, credit] = await Promise.all([
+      db.ledgerLine.count({ where }),
+      db.ledgerLine.aggregate({
+        where: { AND: [where, { amountPiastres: { gt: 0 } }] },
+        _sum: { amountPiastres: true },
+      }),
+      db.ledgerLine.aggregate({
+        where: { AND: [where, { amountPiastres: { lt: 0 } }] },
+        _sum: { amountPiastres: true },
+      }),
+    ]);
+    const debits = debit._sum.amountPiastres ?? 0;
+    const credits = 0 - (credit._sum.amountPiastres ?? 0);
+    const totals = { debit: debits, credit: credits, net: debits - credits };
+    const orderBy: Prisma.LedgerLineOrderByWithRelationInput[] = [
+      { occurredAt: desc ? 'desc' : 'asc' },
+      { id: 'desc' },
+    ];
+    if (all) {
+      const rows = await loadLedgerLines(db, where, { orderBy });
+      return {
+        total: rows.length,
+        page: 1,
+        pageSize: rows.length,
+        rows,
+        totals,
+        groups: null,
+        meta: { naturalDebit, truncated: total > rows.length },
+      };
+    }
+    const pages = Math.max(1, Math.ceil(total / state.pageSize));
+    const page = Math.min(state.page, pages);
+    const rows = await loadLedgerLines(db, where, {
+      orderBy,
+      skip: (page - 1) * state.pageSize,
+      take: state.pageSize,
+    });
+    return {
+      total,
+      page,
+      pageSize: state.pageSize,
+      rows,
+      totals,
+      groups: null,
+      meta: { naturalDebit, truncated: false },
+    };
+  }
+  const rows = await loadLedgerLines(db, options.memory ? slice : where);
   const result = runList(
     rows,
     LEDGER_LINES_DEF,

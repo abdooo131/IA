@@ -1092,6 +1092,8 @@ model Order {
   @@index([darkStoreId, status, slaDueAt])
   @@index([merchantId, placedAt])
   @@index([status, placedAt])
+  /// The orders list pages by placing time (newest first) in the database
+  @@index([placedAt])
   @@index([customerId])
   @@index([createdAt])
   @@map("orders")

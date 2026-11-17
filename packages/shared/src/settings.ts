@@ -497,6 +497,41 @@ export const SETTING_DEFINITIONS = {
       'Days a finished Shopify call (sent, or given up after its last try) is kept before the daily job deletes it',
     override: 'none',
   },
+  'cleanup.run_hour': {
+    schema: z.number().int().min(0).max(23),
+    default: 3,
+    description:
+      'Cairo hour after which the nightly clean up deletes old working rows (never business records)',
+    override: 'none',
+  },
+  'cleanup.refresh_token_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 7,
+    description:
+      'Days after a sign in session (refresh token) expired before the nightly job deletes it',
+    override: 'none',
+  },
+  'cleanup.geocode_not_found_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 7,
+    description:
+      'Days an address Google could not find is kept before the nightly job deletes the answer (found points are kept)',
+    override: 'none',
+  },
+  'cleanup.email_sent_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 180,
+    description:
+      'Days a sent merchant email is kept in the outbox before the nightly job deletes it (failed ones are kept)',
+    override: 'none',
+  },
+  'cleanup.notification_read_days': {
+    schema: z.number().int().min(1).max(3650),
+    default: 365,
+    description:
+      'Days a merchant notification that was read is kept before the nightly job deletes it (unread ones are kept)',
+    override: 'none',
+  },
   'signup.auto_approve': {
     schema: z.number().int().min(0).max(1),
     default: 1,

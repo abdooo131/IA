@@ -353,6 +353,11 @@ export interface ListResult<R> {
   totals: Record<string, number>;
   /** Groups (with counts and subtotals) when grouped and no group was opened */
   groups: ListGroup[] | null;
+  /**
+   * The list could only look at its newest LIST_MAX_ROWS rows (set by the API): older rows that
+   * would pass are left out, so the person should narrow it (a day range, a store).
+   */
+  truncated?: boolean;
 }
 
 /** Folds Arabic letter forms and case so typed search finds what people mean. */

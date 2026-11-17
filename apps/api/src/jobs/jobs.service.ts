@@ -32,6 +32,8 @@ import {
   runReceivableReminders,
   runDepositDeadline,
   purgeUnlinkedUploads,
+  cleanUpTables,
+  cleanupDue,
   raiseStartupAlert,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
@@ -81,6 +83,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private documentsDone: string | null = null;
   /** The hour unlinked finance uploads were last cleared */
   private uploadsDone: string | null = null;
+  /** The last Cairo day the nightly table clean up ran in this instance. */
+  private cleanupDone: string | null = null;
   /** The last ten minute slot the attendance close ran in this instance. */
   private attendanceDone: string | null = null;
   private closingAttendance = false;
@@ -134,6 +138,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runPaymentReminders();
       void this.runDepositDeadline();
       void this.runUploadPurge();
+      void this.runTableCleanup();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -201,6 +206,30 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: upload purge', error);
+      return null;
+    }
+  }
+
+  /**
+   * Once a Cairo day from cleanup.run_hour: deletes old working rows that nothing reads any
+   * more (expired sign in sessions, Google "not found" answers, sent emails, read merchant
+   * notifications), each after its cleanup.* setting. Business records are never touched and
+   * deleting twice deletes nothing more, so repeats and other instances are harmless.
+   */
+  async runTableCleanup(now: Date = new Date()) {
+    try {
+      const day = await cleanupDue(this.prisma, now, this.cleanupDone);
+      if (!day) return null;
+      const result = await cleanUpTables(this.prisma, now);
+      this.cleanupDone = day;
+      const deleted = Object.values(result).reduce((s, n) => s + n, 0);
+      if (deleted > 0)
+        this.log.log(
+          `Clean up: ${result.refreshTokens} sessions, ${result.geocodeNotFound} address answers, ${result.emailsSent} emails, ${result.notificationsRead} notifications deleted`,
+        );
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: table clean up', error);
       return null;
     }
   }

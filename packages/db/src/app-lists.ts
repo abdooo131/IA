@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   addDays,
   APP_LISTS,
@@ -45,6 +45,7 @@ import { directReports } from './hr-inbox';
 import { getSetting } from './settings';
 import { type CustomerListRow, customerListRows } from './shopdata/customer-insights';
 import { listGaps, type ListScope, queryList, type RegisteredList } from './list-query';
+import type { SqlList } from './list-sql';
 
 // The list views of the other apps (UX phase C; step 1 Operations: orders, alerts and damage
 // reports; step 2 Inventory: stock, shipments in, transfers, returns and stock counts). Each
@@ -139,12 +140,24 @@ export interface OrderListRow {
 }
 
 async function loadOrders(db: Db, scope: ListScope, state: ListState): Promise<OrderListRow[]> {
-  const rows = await db.order.findMany({
-    where: {
+  return orderRows(
+    db,
+    {
       darkStoreId: within(state.values.store, scope.storeIds),
       merchantId: within(state.values.merchant, scope.merchantIds),
       placedAt: dayRange(state),
     },
+    LIST_MAX_ROWS,
+  );
+}
+
+async function orderRows(
+  db: Db,
+  where: Prisma.OrderWhereInput,
+  take?: number,
+): Promise<OrderListRow[]> {
+  const rows = await db.order.findMany({
+    where,
     select: {
       id: true,
       number: true,
@@ -173,8 +186,8 @@ async function loadOrders(db: Db, scope: ListScope, state: ListState): Promise<O
         take: 1,
       },
     },
-    orderBy: { placedAt: 'desc' },
-    take: LIST_MAX_ROWS,
+    orderBy: [{ placedAt: 'desc' }, { id: 'desc' }],
+    take,
   });
   // "Were late": any stage of the order was ever flagged late (as the KPIs count it).
   const late = new Set(
@@ -307,8 +320,9 @@ export function alertWhereFor(scope: ListScope): Prisma.AlertWhereInput {
 async function loadAlerts(db: Db, scope: ListScope, state: ListState): Promise<AlertListRow[]> {
   const base = alertWhereFor(scope);
   const chosenStore = state.values.store;
-  const rows = await db.alert.findMany({
-    where: {
+  return alertRows(
+    db,
+    {
       ...base,
       AND: [
         ...(chosenStore ? [{ darkStoreId: within(chosenStore, scope.storeIds) }] : []),
@@ -318,13 +332,24 @@ async function loadAlerts(db: Db, scope: ListScope, state: ListState): Promise<A
       ...(state.filters.includes('open') &&
         !state.filters.includes('handled') && { resolvedAt: null }),
     },
+    LIST_MAX_ROWS,
+  );
+}
+
+async function alertRows(
+  db: Db,
+  where: Prisma.AlertWhereInput,
+  take?: number,
+): Promise<AlertListRow[]> {
+  const rows = await db.alert.findMany({
+    where,
     include: {
       order: { select: { number: true } },
       darkStore: { select: { code: true } },
       resolvedBy: { select: { name: true } },
     },
-    orderBy: { createdAt: 'desc' },
-    take: LIST_MAX_ROWS,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take,
   });
   return rows.map((a) => ({
     id: a.id,
@@ -527,11 +552,34 @@ export interface StockListRow {
  */
 async function loadStock(db: Db, scope: ListScope, state: ListState): Promise<StockListRow[]> {
   const merchants = within(state.values.merchant, scope.merchantIds);
-  const levels = await db.stockLevel.findMany({
-    where: {
+  return stockRows(
+    db,
+    {
       darkStoreId: within(state.values.store, scope.storeIds),
       ...(merchants && { sku: { merchantId: merchants } }),
     },
+    LIST_MAX_ROWS,
+  );
+}
+
+/** Each store's buffer and low stock threshold (store override, else global). */
+async function stockRules(db: Db, storeIds: Iterable<string>) {
+  const rules = new Map<string, { buffer: number; threshold: number }>();
+  for (const id of new Set(storeIds))
+    rules.set(id, {
+      buffer: await getSetting(db, 'stock.buffer_units', id),
+      threshold: await getSetting(db, 'stock.low_stock_threshold', id),
+    });
+  return rules;
+}
+
+async function stockRows(
+  db: Db,
+  where: Prisma.StockLevelWhereInput,
+  take?: number,
+): Promise<StockListRow[]> {
+  const levels = await db.stockLevel.findMany({
+    where,
     select: {
       darkStoreId: true,
       skuId: true,
@@ -550,14 +598,12 @@ async function loadStock(db: Db, scope: ListScope, state: ListState): Promise<St
       },
     },
     orderBy: [{ darkStore: { code: 'asc' } }, { sku: { sku: 'asc' } }],
-    take: LIST_MAX_ROWS,
+    take,
   });
-  const rules = new Map<string, { buffer: number; threshold: number }>();
-  for (const id of new Set(levels.map((l) => l.darkStoreId)))
-    rules.set(id, {
-      buffer: await getSetting(db, 'stock.buffer_units', id),
-      threshold: await getSetting(db, 'stock.low_stock_threshold', id),
-    });
+  const rules = await stockRules(
+    db,
+    levels.map((l) => l.darkStoreId),
+  );
   return levels.map((l) => {
     const { buffer, threshold } = rules.get(l.darkStoreId)!;
     const available = Math.max(l.onHand - l.reserved - buffer, 0);
@@ -2505,15 +2551,233 @@ const basataDeposits: ListDef<BasataDepositListRow> = {
   sums: APP_LISTS.accounting.basata_deposits.sums,
 };
 
+// ─── database twins of the busiest lists (review step 4, list-sql.ts) ─────────────
+
+/** A UTC instant as the timestamp (without time zone) columns store it. */
+const at = (d: Date) => Prisma.sql`(${d.toISOString()}::timestamptz AT TIME ZONE 'UTC')`;
+/** The column is one of these ids (none: no row). */
+const sqlIn = (col: Prisma.Sql, ids: readonly string[]) =>
+  ids.length ? Prisma.sql`${col} IN (${Prisma.join(ids)})` : Prisma.sql`FALSE`;
+/** Limited to the person's stores or merchants (null: all). */
+const scopeIn = (col: Prisma.Sql, ids: string[] | null) => (ids ? [sqlIn(col, ids)] : []);
+const nextMonthStart = (month: string) => `${monthOfDay(addDays(`${month}-01`, 32))}-01`;
+
+/** Twins of dayFilters on a timestamp column (its Cairo day as the row's day). */
+function dayFilterSql(col: Prisma.Sql) {
+  const from = (day: string) => Prisma.sql`${col} >= ${at(cairoDayStart(day))}`;
+  const until = (day: string) => Prisma.sql`${col} < ${at(cairoDayStart(day))}`;
+  const month = (m: string) => Prisma.sql`${from(`${m}-01`)} AND ${until(nextMonthStart(m))}`;
+  return {
+    today: (ctx: ListCtx) => Prisma.sql`${from(ctx.today)} AND ${until(addDays(ctx.today, 1))}`,
+    yesterday: (ctx: ListCtx) =>
+      Prisma.sql`${from(addDays(ctx.today, -1))} AND ${until(ctx.today)}`,
+    last_7_days: (ctx: ListCtx) => from(addDays(ctx.today, -6)),
+    this_month: (ctx: ListCtx) => month(monthOfDay(ctx.today)),
+    last_month: (ctx: ListCtx) => month(previousMonth(monthOfDay(ctx.today))),
+  };
+}
+const dayValueSql = (col: Prisma.Sql) => ({
+  from: (v: string) => Prisma.sql`${col} >= ${at(cairoDayStart(v))}`,
+  to: (v: string) => Prisma.sql`${col} < ${at(cairoDayStart(addDays(v, 1)))}`,
+});
+
+const ordersSql: SqlList<OrderListRow> = {
+  from: () => Prisma.sql`orders o
+    JOIN dark_stores ds ON ds.id = o.dark_store_id
+    JOIN merchants m ON m.id = o.merchant_id`,
+  id: Prisma.sql`o.id`,
+  where: (scope) => [
+    ...scopeIn(Prisma.sql`o.dark_store_id`, scope.storeIds),
+    ...scopeIn(Prisma.sql`o.merchant_id`, scope.merchantIds),
+  ],
+  filters: {
+    active: () => Prisma.sql`o.status::text NOT IN (${Prisma.join(FINISHED)})`,
+    ...Object.fromEntries(
+      [
+        'new',
+        'accepted',
+        'picking',
+        'packed',
+        'out_for_delivery',
+        'attempt_failed',
+        ...FINISHED,
+      ].map((s) => [s, () => Prisma.sql`o.status::text = ${s}`]),
+    ),
+    late_now: () => Prisma.sql`o.late_stage IS NOT NULL`,
+    was_late: () =>
+      Prisma.sql`(o.late_stage IS NOT NULL OR EXISTS (
+        SELECT 1 FROM alerts la WHERE la.order_id = o.id AND la.type = 'late'))`,
+    delivered_late: () =>
+      Prisma.sql`(o.delivered_at IS NOT NULL AND o.sla_due_at IS NOT NULL AND o.delivered_at > o.sla_due_at)`,
+    cod: () => Prisma.sql`o.payment_method::text = 'cod'`,
+    prepaid: () => Prisma.sql`o.payment_method::text = 'prepaid'`,
+    shopify: () => Prisma.sql`o.source::text = 'shopify'`,
+    manual: () => Prisma.sql`o.source::text = 'manual'`,
+    phone_flagged: () => Prisma.sql`o.phone_flagged`,
+    ...dayFilterSql(Prisma.sql`o.placed_at`),
+  },
+  values: {
+    store: (v) => Prisma.sql`o.dark_store_id = ${v}`,
+    merchant: (v) => Prisma.sql`o.merchant_id = ${v}`,
+    ...dayValueSql(Prisma.sql`o.placed_at`),
+  },
+  search: [
+    Prisma.sql`o.number`,
+    Prisma.sql`o.customer_name`,
+    Prisma.sql`o.customer_phone`,
+    Prisma.sql`CASE WHEN left(o.customer_phone, 3) = '+20' THEN '0' || substr(o.customer_phone, 4) ELSE o.customer_phone END`,
+    Prisma.sql`m.name`,
+    Prisma.sql`ds.code`,
+  ],
+  sorts: {
+    number: { expr: Prisma.sql`o.number`, text: true },
+    placed: { expr: Prisma.sql`o.placed_at` },
+    promise: { expr: Prisma.sql`o.sla_due_at` },
+    cod: { expr: Prisma.sql`o.cod_amount_piastres` },
+    value: { expr: Prisma.sql`o.subtotal_piastres` },
+  },
+  order: Prisma.sql`o.placed_at DESC, o.id DESC`,
+  sums: {
+    cod: Prisma.sql`o.cod_amount_piastres`,
+    value: Prisma.sql`o.subtotal_piastres`,
+    deliveryFee: Prisma.sql`o.delivery_fee_piastres`,
+  },
+  rows: (db, ids) => orderRows(db, { id: { in: ids } }),
+};
+
+const alertsSql: SqlList<AlertListRow> = {
+  from: () => Prisma.sql`alerts a
+    LEFT JOIN orders o ON o.id = a.order_id
+    LEFT JOIN dark_stores ds ON ds.id = a.dark_store_id
+    LEFT JOIN users u ON u.id = a.resolved_by_id`,
+  id: Prisma.sql`a.id`,
+  // As alertWhereFor: the person's stores, the types they may see, their merchants.
+  where: (scope) => {
+    const access = scope.access;
+    const hidden = [
+      ...(!access || !canDo(access, 'hr', 'view') ? ['document_expiring', 'document_expired'] : []),
+      ...(!access || !canDo(access, 'sales', 'manage')
+        ? ['crm_followup_overdue', 'crm_deal_stale']
+        : []),
+    ];
+    return [
+      ...scopeIn(Prisma.sql`a.dark_store_id`, scope.storeIds),
+      ...(hidden.length ? [Prisma.sql`a.type NOT IN (${Prisma.join(hidden)})`] : []),
+      ...(scope.merchantIds
+        ? [
+            Prisma.sql`(${sqlIn(Prisma.sql`a.merchant_id`, scope.merchantIds)} OR ${sqlIn(Prisma.sql`o.merchant_id`, scope.merchantIds)})`,
+          ]
+        : []),
+    ];
+  },
+  filters: {
+    open: () => Prisma.sql`a.resolved_at IS NULL`,
+    handled: () => Prisma.sql`a.resolved_at IS NOT NULL`,
+    with_order: () => Prisma.sql`a.order_id IS NOT NULL`,
+    ...pick(dayFilterSql(Prisma.sql`a.created_at`), ['today', 'last_7_days', 'this_month']),
+  },
+  values: {
+    type: (v) => Prisma.sql`a.type = ${v}`,
+    store: (v) => Prisma.sql`a.dark_store_id = ${v}`,
+  },
+  search: [
+    Prisma.sql`a.type`,
+    Prisma.sql`o.number`,
+    Prisma.sql`ds.code`,
+    Prisma.sql`u.name`,
+    // The texts and numbers of the alert's data, as the list's search reads them.
+    Prisma.sql`(SELECT string_agg(x.v #>> '{}', ' ') FROM (
+      SELECT value AS v FROM jsonb_each(CASE WHEN jsonb_typeof(a.data) = 'object' THEN a.data ELSE '{}'::jsonb END)
+      UNION ALL
+      SELECT value FROM jsonb_array_elements(CASE WHEN jsonb_typeof(a.data) = 'array' THEN a.data ELSE '[]'::jsonb END)
+    ) x WHERE jsonb_typeof(x.v) IN ('string', 'number'))`,
+  ],
+  sorts: {
+    created: { expr: Prisma.sql`a.created_at` },
+    type: { expr: Prisma.sql`a.type`, text: true },
+  },
+  order: Prisma.sql`a.created_at DESC, a.id DESC`,
+  sums: {},
+  rows: (db, ids) => alertRows(db, { id: { in: ids } }),
+};
+
+/** Available as the stock list counts it: on hand − reserved − the store's buffer, never < 0. */
+const STOCK_AVAILABLE = Prisma.sql`GREATEST(sl.on_hand - sl.reserved - r.buffer, 0)`;
+
+const stockSql: SqlList<StockListRow> = {
+  from: async (db, scope) => {
+    // Each store's buffer and threshold, as a small table joined to its levels.
+    const stores =
+      scope.storeIds ?? (await db.darkStore.findMany({ select: { id: true } })).map((s) => s.id);
+    const rules = await stockRules(db, stores);
+    const json = JSON.stringify(
+      [...rules].map(([id, r]) => ({ store_id: id, buffer: r.buffer, threshold: r.threshold })),
+    );
+    return Prisma.sql`stock_levels sl
+      JOIN dark_stores ds ON ds.id = sl.dark_store_id
+      JOIN skus s ON s.id = sl.sku_id
+      JOIN merchants m ON m.id = s.merchant_id
+      JOIN jsonb_to_recordset(${json}::jsonb) AS r(store_id text, buffer int, threshold int)
+        ON r.store_id = sl.dark_store_id`;
+  },
+  id: Prisma.sql`sl.dark_store_id || ':' || sl.sku_id`,
+  where: (scope) => [
+    ...scopeIn(Prisma.sql`sl.dark_store_id`, scope.storeIds),
+    ...scopeIn(Prisma.sql`s.merchant_id`, scope.merchantIds),
+  ],
+  filters: {
+    in_stock: () => Prisma.sql`${STOCK_AVAILABLE} > 0`,
+    low_stock: () => Prisma.sql`${STOCK_AVAILABLE} <= r.threshold`,
+    out_of_stock: () => Prisma.sql`${STOCK_AVAILABLE} = 0`,
+    has_reserved: () => Prisma.sql`sl.reserved > 0`,
+    dark_stores: () => Prisma.sql`ds.kind::text = 'dark_store'`,
+    hubs: () => Prisma.sql`ds.kind::text = 'hub'`,
+  },
+  values: {
+    store: (v) => Prisma.sql`sl.dark_store_id = ${v}`,
+    merchant: (v) => Prisma.sql`s.merchant_id = ${v}`,
+  },
+  search: [
+    Prisma.sql`s.sku`,
+    Prisma.sql`s.barcode`,
+    Prisma.sql`s.title_en`,
+    Prisma.sql`s.title_ar`,
+    Prisma.sql`m.name`,
+    Prisma.sql`ds.code`,
+  ],
+  sorts: {
+    sku: { expr: Prisma.sql`s.sku`, text: true },
+    onHand: { expr: Prisma.sql`sl.on_hand` },
+    reserved: { expr: Prisma.sql`sl.reserved` },
+    available: { expr: STOCK_AVAILABLE },
+  },
+  order: Prisma.sql`ds.code ASC, s.sku ASC, sl.sku_id ASC`,
+  sums: {
+    onHand: Prisma.sql`sl.on_hand`,
+    reserved: Prisma.sql`sl.reserved`,
+    available: STOCK_AVAILABLE,
+  },
+  // Ids are <store>:<product>; the levels of those stores and products, then those pairs.
+  rows: async (db, ids) => {
+    const pairs = new Set(ids);
+    const split = ids.map((id) => id.split(':') as [string, string]);
+    const rows = await stockRows(db, {
+      darkStoreId: { in: [...new Set(split.map(([s]) => s))] },
+      skuId: { in: [...new Set(split.map(([, k]) => k))] },
+    });
+    return rows.filter((r) => pairs.has(r.id));
+  },
+};
+
 // ─── the registry ───────────────────────────────────────────────────────────────
 
 export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
   operations: {
-    orders: { def: orders, load: loadOrders },
-    alerts: { def: alerts, load: loadAlerts },
+    orders: { def: orders, load: loadOrders, sql: ordersSql },
+    alerts: { def: alerts, load: loadAlerts, sql: alertsSql },
   },
   inventory: {
-    stock: { def: stock, load: loadStock },
+    stock: { def: stock, load: loadStock, sql: stockSql },
     shipments: { def: shipments, load: loadShipments },
     transfers: { def: transfers, load: loadTransfers },
     returns: { def: returns, load: loadReturns },
@@ -2551,11 +2815,13 @@ export async function queryAppList(
   query: ListQuery,
   scope: ListScope,
   now: Date = new Date(),
+  /** For tests: memory runs every row in scope through the shared engine (no database twin) */
+  options: { memory?: boolean } = {},
 ): Promise<ListResult<Record<string, unknown>> | null> {
   const meta = appListMeta(app, id);
   const entry = APP_LIST_DEFS[app]?.[id];
   if (!meta || !entry) return null;
-  return queryList(db, entry, meta, query, scope, now);
+  return queryList(db, entry, meta, query, scope, now, options);
 }
 
 /** The values a list's option filters offer the person: their stores, merchants, types. */

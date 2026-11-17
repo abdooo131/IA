@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { directionOf, toLocale } from '@/lib/preferences';
+import { ClientMessages } from '@/components/ClientMessages';
 import { LatinDigits } from '@/components/LatinDigits';
 import { PushRegistrar } from '@/components/PushRegistrar';
 import { getClaims, getTheme } from '@/lib/server-session';
@@ -43,11 +43,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       suppressHydrationWarning
     >
       <body className="min-h-dvh">
-        <NextIntlClientProvider>
+        <ClientMessages scope="root">
           {children}
           <LatinDigits />
           {push && <PushRegistrar signedIn={signedIn} />}
-        </NextIntlClientProvider>
+        </ClientMessages>
       </body>
     </html>
   );

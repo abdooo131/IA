@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { REFRESH_TOKEN_COOKIE } from '@shiplynow/shared';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { ClientMessages } from '@/components/ClientMessages';
 import { Logo } from '@/components/Logo';
 import { SignOutButton } from '@/components/SignOutButton';
 import { SiteHome } from '@/components/site/SiteHome';
@@ -26,17 +27,23 @@ export default async function HomePage() {
   if (!claims) {
     // An expired sign in still has its refresh token: renew it and come back to the person's area.
     if ((await cookies()).has(REFRESH_TOKEN_COOKIE)) redirect('/auth/refresh?next=%2F');
-    return <SiteHome />;
+    return (
+      <ClientMessages scope="site">
+        <SiteHome />
+      </ClientMessages>
+    );
   }
   const home = homeFor(claims.role);
   if (home) redirect(home);
 
   const t = await getTranslations();
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-start justify-center gap-4 px-4">
-      <Logo alt={t('common.appName')} />
-      <p className="text-body">{t('home.noArea')}</p>
-      <SignOutButton />
-    </main>
+    <ClientMessages scope="site">
+      <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-start justify-center gap-4 px-4">
+        <Logo alt={t('common.appName')} />
+        <p className="text-body">{t('home.noArea')}</p>
+        <SignOutButton />
+      </main>
+    </ClientMessages>
   );
 }

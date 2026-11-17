@@ -2,6 +2,7 @@ import {
   type AccessProfile,
   cairoDay,
   type ListDef,
+  LIST_MAX_ROWS,
   listKnownOf,
   type ListMeta,
   type ListQuery,
@@ -12,6 +13,7 @@ import {
   validListValue,
 } from '@shiplynow/shared';
 import type { Db } from './client';
+import { runSqlList, type SqlList } from './list-sql';
 
 // The one list query helper every list view endpoint uses (Accounting's lists and the other
 // apps' lists): reads the list state from the query (the list's default filters when the
@@ -33,6 +35,9 @@ export interface RegisteredList {
   def: ListDef<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   load: (db: Db, scope: ListScope, state: ListState, now: Date) => Promise<any[]>;
+  /** The list's database twins (list-sql.ts): search, filters, sorting and paging in SQL */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sql?: SqlList<any>;
 }
 
 /** The list state a query names, with unknown keys and malformed values dropped. */
@@ -53,19 +58,20 @@ export async function queryList(
   query: ListQuery,
   scope: ListScope,
   now: Date = new Date(),
-): Promise<ListResult<Record<string, unknown>>> {
+  /** For tests: the list's own loader and the shared engine, never its database twins */
+  options: { memory?: boolean } = {},
+): Promise<ListResult<Record<string, unknown>> & { truncated: boolean }> {
   const state = listStateOf(meta, query);
+  const ctx = { today: cairoDay(now), userId: scope.userId };
+  const run = {
+    open: query.open ? query.open.split('\n') : undefined,
+    all: query.all === '1',
+  };
+  if (entry.sql && !options.memory)
+    return runSqlList(db, entry.sql, entry.def, state, scope, ctx, { ...run, now });
   const rows = await entry.load(db, scope, state, now);
-  return runList(
-    rows,
-    entry.def,
-    state,
-    { today: cairoDay(now), userId: scope.userId },
-    {
-      open: query.open ? query.open.split('\n') : undefined,
-      all: query.all === '1',
-    },
-  );
+  // Loaders take the newest LIST_MAX_ROWS rows: a full load may have left older ones out.
+  return { ...runList(rows, entry.def, state, ctx, run), truncated: rows.length >= LIST_MAX_ROWS };
 }
 
 /** For tests: every filter, value filter, grouping and sort a list's meta names exists. */

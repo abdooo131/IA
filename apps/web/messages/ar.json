@@ -26,6 +26,7 @@
     "errorTitle": "حصلت مشكلة",
     "errorBody": "الصفحة دي ما ظهرتش. جرب تاني، أو ارجع للصفحة الرئيسية.",
     "tryAgain": "جرب تاني",
+    "help": "المساعدة",
     "loading": "بيحمل"
   },
   "roles": {
@@ -525,6 +526,11 @@
         "push__enabled": "إشعارات الهاتف والمتصفح مفعّلة (1) أو متوقفة (0)",
         "shopify__log_retention_days": "مدة الاحتفاظ بسجل شوبيفاي (أيام)",
         "shopify__outbox_retention_days": "مدة الاحتفاظ بطلبات شوبيفاي المنتهية (أيام)",
+        "cleanup__run_hour": "التنظيف الليلي يشتغل بعد الساعة (بتوقيت القاهرة)",
+        "cleanup__refresh_token_days": "حذف جلسات الدخول المنتهية بعد (أيام)",
+        "cleanup__geocode_not_found_days": "حذف العناوين اللي جوجل ملقاهاش بعد (أيام)",
+        "cleanup__email_sent_days": "حذف إيميلات التجار المبعوتة بعد (أيام)",
+        "cleanup__notification_read_days": "حذف إشعارات التجار المقروءة بعد (أيام)",
         "stock__packaging_low_units": "تنبيه نقص التغليف عند (وحدات)",
         "finance__po_bill_tolerance_bp": "السماح للفاتورة بتجاوز أمر الشراء بنسبة (%)",
         "sales__auto_assign": "توزيع العملاء الجدد على المندوبين بالتناوب (1 تشغيل، 0 إيقاف)",
@@ -10532,6 +10538,7 @@
     "deleteFavorite": "حذف {name}",
     "range": "{from}–{to} من {total}",
     "grouped": "{count} سجل في {groups} مجموعات",
+    "truncated": "القايمة دي بتدور في أحدث {max} بس: اختار أيام أو مخزن أو فلتر علشان توصل للأقدم.",
     "previousPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
     "perPage": "لكل صفحة",
