@@ -1,0 +1,339 @@
+{
+  "$description": "Shiply design tokens v1.0",
+  "brand": {
+    "blue": {
+      "value": "#0047BB",
+      "pantone": "2728 C",
+      "rgb": "0 71 187",
+      "usage": "Main brand color. Logo, primary buttons, links, selected states."
+    },
+    "sky": {
+      "value": "#59CBE8",
+      "pantone": "2985 C",
+      "rgb": "89 203 232",
+      "usage": "Second color. Fills and backgrounds only, never text or thin lines on white."
+    },
+    "navy": {
+      "value": "#13294B",
+      "pantone": "2767 C",
+      "rgb": "19 41 75",
+      "usage": "Text and icons."
+    },
+    "white": {
+      "value": "#FFFFFF",
+      "pantone": "Paper white",
+      "rgb": "255 255 255",
+      "usage": "Space and text on Shiply Blue."
+    }
+  },
+  "color": {
+    "light": {
+      "bg": {
+        "value": "#F3F6FA",
+        "usage": "App background"
+      },
+      "surface": {
+        "value": "#FFFFFF",
+        "usage": "Cards, sheets, sidebar"
+      },
+      "surface-raised": {
+        "value": "#F3F6FA",
+        "usage": "Hover rows, inputs, nested panels"
+      },
+      "line": {
+        "value": "#DFE5EE",
+        "usage": "Borders and dividers"
+      },
+      "text": {
+        "value": "#13294B",
+        "usage": "Body text, headings, icons"
+      },
+      "text-muted": {
+        "value": "#5B6B82",
+        "usage": "Secondary text, captions, placeholders"
+      },
+      "primary": {
+        "value": "#0047BB",
+        "usage": "Primary button background"
+      },
+      "on-primary": {
+        "value": "#FFFFFF",
+        "usage": "Text and icons on primary"
+      },
+      "primary-pressed": {
+        "value": "#003C9D",
+        "usage": "Primary button pressed"
+      },
+      "link": {
+        "value": "#0047BB",
+        "usage": "Links, selected nav text and icon lines"
+      },
+      "selected-bg": {
+        "value": "#E6F6FB",
+        "usage": "Selected nav item, selected tab, secondary button"
+      },
+      "sky": {
+        "value": "#59CBE8",
+        "usage": "Sky fills: selected icon fill, lid bands, illustrations"
+      },
+      "focus": {
+        "value": "#59CBE8",
+        "usage": "Focus ring, 2px outside the element"
+      },
+      "danger": {
+        "value": "#DC2626",
+        "usage": "Destructive actions and errors"
+      }
+    },
+    "dark": {
+      "bg": {
+        "value": "#0B1424",
+        "usage": "App background"
+      },
+      "surface": {
+        "value": "#111E33",
+        "usage": "Cards, sheets, sidebar"
+      },
+      "surface-raised": {
+        "value": "#18273F",
+        "usage": "Hover rows, inputs, nested panels"
+      },
+      "line": {
+        "value": "#24344F",
+        "usage": "Borders and dividers"
+      },
+      "text": {
+        "value": "#E7EDF7",
+        "usage": "Body text, headings, icons"
+      },
+      "text-muted": {
+        "value": "#93A3BC",
+        "usage": "Secondary text, captions, placeholders"
+      },
+      "primary": {
+        "value": "#2F6BFF",
+        "usage": "Primary button background"
+      },
+      "on-primary": {
+        "value": "#FFFFFF",
+        "usage": "Text and icons on primary"
+      },
+      "primary-pressed": {
+        "value": "#255BE0",
+        "usage": "Primary button pressed"
+      },
+      "link": {
+        "value": "#5B8CFF",
+        "usage": "Links, selected nav text and icon lines"
+      },
+      "selected-bg": {
+        "value": "#18273F",
+        "usage": "Selected nav item, selected tab, secondary button"
+      },
+      "sky": {
+        "value": "#59CBE8",
+        "usage": "Sky fills: selected icon fill, lid bands, illustrations"
+      },
+      "focus": {
+        "value": "#59CBE8",
+        "usage": "Focus ring, 2px outside the element"
+      },
+      "danger": {
+        "value": "#F87171",
+        "usage": "Destructive actions and errors"
+      }
+    }
+  },
+  "status": {
+    "new": {
+      "label": "New",
+      "labelAr": "جديد",
+      "icon": "new",
+      "light": "#64748B",
+      "dark": "#94A3B8"
+    },
+    "in-progress": {
+      "label": "In progress",
+      "labelAr": "جاري التجهيز",
+      "icon": "schedule",
+      "light": "#7C3AED",
+      "dark": "#A78BFA"
+    },
+    "heading-to-customer": {
+      "label": "Heading to customer",
+      "labelAr": "في الطريق للعميل",
+      "icon": "courier",
+      "light": "#C026D3",
+      "dark": "#E879F9"
+    },
+    "delivered": {
+      "label": "Delivered",
+      "labelAr": "اتسلم",
+      "icon": "delivered",
+      "light": "#16A34A",
+      "dark": "#4ADE80"
+    },
+    "needs-action": {
+      "label": "Needs action",
+      "labelAr": "محتاج إجراء",
+      "icon": "alert",
+      "light": "#D97706",
+      "dark": "#FB923C"
+    },
+    "returning": {
+      "label": "Returning",
+      "labelAr": "راجع لك",
+      "icon": "returns",
+      "light": "#DC2626",
+      "dark": "#F87171"
+    }
+  },
+  "wallet": {
+    "cash": {
+      "label": "COD cash",
+      "icon": "cash",
+      "base": "#0E9384",
+      "tint": "#E1F5F2",
+      "ink": "#0B5F57",
+      "dark": "#2DD4BF"
+    },
+    "points": {
+      "label": "Driver points",
+      "icon": "points",
+      "base": "#FFC21A",
+      "tint": "#FFF6D6",
+      "ink": "#7A5200",
+      "dark": "#FFD34D"
+    }
+  },
+  "gradient": {
+    "daylight": "linear-gradient(135deg, #59CBE8 0%, #0047BB 100%)",
+    "night-route": "linear-gradient(160deg, #0047BB 0%, #13294B 100%)",
+    "glow": "radial-gradient(circle at 80% 20%, #59CBE8 0%, rgba(89,203,232,0) 55%), #0047BB",
+    "horizon": "linear-gradient(180deg, #FFFFFF 0%, #E6F6FB 100%)"
+  },
+  "font": {
+    "latin": "Plus Jakarta Sans",
+    "arabic": "IBM Plex Sans Arabic",
+    "weights": [
+      400,
+      500,
+      600,
+      700,
+      800
+    ]
+  },
+  "type": {
+    "display": {
+      "sizeWeb": 56,
+      "sizeMobile": 40,
+      "lineHeight": 1.05,
+      "weight": 800,
+      "letterSpacingEm": -0.035,
+      "usage": "Marketing heroes, splash"
+    },
+    "h1": {
+      "sizeWeb": 40,
+      "sizeMobile": 32,
+      "lineHeight": 1.1,
+      "weight": 800,
+      "letterSpacingEm": -0.03,
+      "usage": "Page titles on the website"
+    },
+    "h2": {
+      "sizeWeb": 28,
+      "sizeMobile": 24,
+      "lineHeight": 1.2,
+      "weight": 700,
+      "letterSpacingEm": -0.02,
+      "usage": "Dashboard page titles"
+    },
+    "h3": {
+      "sizeWeb": 20,
+      "sizeMobile": 18,
+      "lineHeight": 1.35,
+      "weight": 700,
+      "letterSpacingEm": -0.01,
+      "usage": "Card and section titles"
+    },
+    "body-lg": {
+      "sizeWeb": 18,
+      "sizeMobile": 17,
+      "lineHeight": 1.6,
+      "weight": 400,
+      "letterSpacingEm": 0,
+      "usage": "Intro text"
+    },
+    "body": {
+      "sizeWeb": 16,
+      "sizeMobile": 16,
+      "lineHeight": 1.6,
+      "weight": 400,
+      "letterSpacingEm": 0,
+      "usage": "Default text"
+    },
+    "body-sm": {
+      "sizeWeb": 14,
+      "sizeMobile": 14,
+      "lineHeight": 1.5,
+      "weight": 400,
+      "letterSpacingEm": 0,
+      "usage": "Tables, dense lists"
+    },
+    "caption": {
+      "sizeWeb": 13,
+      "sizeMobile": 12,
+      "lineHeight": 1.4,
+      "weight": 500,
+      "letterSpacingEm": 0,
+      "usage": "Timestamps, helper text"
+    },
+    "label": {
+      "sizeWeb": 12,
+      "sizeMobile": 11,
+      "lineHeight": 1.3,
+      "weight": 700,
+      "letterSpacingEm": 0.06,
+      "usage": "Overlines, table headers (uppercase)"
+    },
+    "number-lg": {
+      "sizeWeb": 28,
+      "sizeMobile": 24,
+      "lineHeight": 1.1,
+      "weight": 800,
+      "letterSpacingEm": -0.01,
+      "usage": "Stat cards, wallet balance (tabular numbers)"
+    }
+  },
+  "space": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64
+  ],
+  "radius": {
+    "sm": 6,
+    "md": 10,
+    "lg": 16,
+    "xl": 24,
+    "pill": 999
+  },
+  "shadow": {
+    "sm": "0 1px 2px rgba(19,41,75,.06), 0 1px 1px rgba(19,41,75,.04)",
+    "md": "0 6px 16px rgba(19,41,75,.10)",
+    "lg": "0 16px 32px rgba(19,41,75,.16)"
+  },
+  "rules": [
+    "Sky (#59CBE8) is a fill or background only. Never text, thin lines or outline icons on white.",
+    "Every status shows color, its own icon and its label together. Never color alone.",
+    "Wallet colors (cash, points) appear only in wallet cards, balances and transactions, never in status chips.",
+    "One primary (Blue) button per screen."
+  ]
+}

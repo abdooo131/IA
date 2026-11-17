@@ -1,0 +1,52 @@
+// Add to tailwind.config.js:  presets: [require('./shiply.tailwind.js')]
+// Colors read the CSS variables from tokens/css/shiply-tokens.css, so dark mode works automatically.
+module.exports = {
+  darkMode: ['class', '[data-theme="dark"]'],
+  theme: {
+    extend: {
+      colors: {
+        shiply: { blue: '#0047BB', sky: '#59CBE8', navy: '#13294B' },
+        'bg': 'var(--shiply-bg)',
+        'surface': 'var(--shiply-surface)',
+        'surface-raised': 'var(--shiply-surface-raised)',
+        'line': 'var(--shiply-line)',
+        'text': 'var(--shiply-text)',
+        'text-muted': 'var(--shiply-text-muted)',
+        'primary': 'var(--shiply-primary)',
+        'on-primary': 'var(--shiply-on-primary)',
+        'primary-pressed': 'var(--shiply-primary-pressed)',
+        'link': 'var(--shiply-link)',
+        'selected-bg': 'var(--shiply-selected-bg)',
+        'sky': 'var(--shiply-sky)',
+        'focus': 'var(--shiply-focus)',
+        'danger': 'var(--shiply-danger)',
+        status: {
+          'new': 'var(--shiply-status-new)',
+          'in-progress': 'var(--shiply-status-in-progress)',
+          'heading-to-customer': 'var(--shiply-status-heading-to-customer)',
+          'delivered': 'var(--shiply-status-delivered)',
+          'needs-action': 'var(--shiply-status-needs-action)',
+          'returning': 'var(--shiply-status-returning)',
+        },
+        cash: { DEFAULT: 'var(--shiply-cash)', tint: 'var(--shiply-cash-tint)', ink: 'var(--shiply-cash-ink)' },
+        points: { DEFAULT: 'var(--shiply-points)', tint: 'var(--shiply-points-tint)', ink: 'var(--shiply-points-ink)' },
+      },
+      fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'], arabic: ['"IBM Plex Sans Arabic"', '"Plus Jakarta Sans"', 'sans-serif'] },
+      fontSize: {
+        'display': ['56px', { lineHeight: '1.05', letterSpacing: '-0.035em', fontWeight: '800' }],
+        'h1': ['40px', { lineHeight: '1.1', letterSpacing: '-0.03em', fontWeight: '800' }],
+        'h2': ['28px', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'h3': ['20px', { lineHeight: '1.35', letterSpacing: '-0.01em', fontWeight: '700' }],
+        'body-lg': ['18px', { lineHeight: '1.6', letterSpacing: '0em', fontWeight: '400' }],
+        'body': ['16px', { lineHeight: '1.6', letterSpacing: '0em', fontWeight: '400' }],
+        'body-sm': ['14px', { lineHeight: '1.5', letterSpacing: '0em', fontWeight: '400' }],
+        'caption': ['13px', { lineHeight: '1.4', letterSpacing: '0em', fontWeight: '500' }],
+        'label': ['12px', { lineHeight: '1.3', letterSpacing: '0.06em', fontWeight: '700' }],
+        'number-lg': ['28px', { lineHeight: '1.1', letterSpacing: '-0.01em', fontWeight: '800' }],
+      },
+      borderRadius: { 'sm': '6px', 'md': '10px', 'lg': '16px', 'xl': '24px', 'pill': '999px' },
+      boxShadow: { 'sm': '0 1px 2px rgba(19,41,75,.06), 0 1px 1px rgba(19,41,75,.04)', 'md': '0 6px 16px rgba(19,41,75,.10)', 'lg': '0 16px 32px rgba(19,41,75,.16)' },
+      backgroundImage: { 'daylight': 'linear-gradient(135deg, #59CBE8 0%, #0047BB 100%)', 'night-route': 'linear-gradient(160deg, #0047BB 0%, #13294B 100%)', 'glow': 'radial-gradient(circle at 80% 20%, #59CBE8 0%, rgba(89,203,232,0) 55%), #0047BB', 'horizon': 'linear-gradient(180deg, #FFFFFF 0%, #E6F6FB 100%)' },
+    },
+  },
+};

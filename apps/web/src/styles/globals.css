@@ -1,0 +1,133 @@
+@import './shiply-tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg text-text text-body antialiased;
+    font-family: var(--shiply-font);
+  }
+  html[lang='ar'] body {
+    font-family: var(--shiply-font-arabic);
+  }
+  /* Letter spacing breaks Arabic joining: Arabic text keeps the type sizes without tracking. */
+  html[lang='ar'] :is(.text-display, .text-h1, .text-h2, .text-h3, .text-label, .text-number-lg) {
+    letter-spacing: 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--shiply-focus);
+    outline-offset: 2px;
+  }
+  /* A grid cell never grows wider than its column because of a wide table or a long word,
+     so pages never slide sideways on a phone (wide tables scroll inside their own box). */
+  .grid > * {
+    min-width: 0;
+  }
+  /* Form fields keep a border people can see (3:1): a field drawn with the soft card line
+     takes the strong line instead, so pages need no change. */
+  :is(input:not([type='checkbox']):not([type='radio']), select, textarea).border-line {
+    border-color: var(--shiply-line-strong);
+  }
+  :is(input, select, textarea)::placeholder {
+    color: var(--shiply-text-muted);
+    opacity: 1;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--shiply-primary);
+  }
+}
+
+@layer components {
+  /* Buttons (brand v2): primary Shiply Blue, secondary a Navy outline, accent Lime with Navy
+     text for the single most important highlight on a screen. */
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-body-sm font-bold;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-on-primary hover:bg-primary-pressed active:bg-primary-pressed disabled:bg-line disabled:text-text-muted;
+  }
+  .btn-secondary {
+    @apply btn border border-text bg-transparent text-text hover:bg-surface-raised disabled:opacity-50;
+  }
+  .btn-accent {
+    @apply btn bg-accent text-on-accent hover:brightness-95 disabled:opacity-50;
+  }
+  /* Selected icons: the line in the text color with a touch of Lime fill (brand v2 accent). */
+  .is-selected .shiply-fill {
+    fill: var(--shiply-accent);
+    fill-opacity: 0.7;
+  }
+  /* Filled status and danger chips: white text on the light theme's deep status colors, Navy
+     text on the dark theme's light ones, so every chip passes AA in both themes. */
+  [class*='bg-status-'].text-white,
+  [class*='bg-status-'].text-on-primary,
+  .bg-danger.text-on-primary,
+  .bg-danger.text-white {
+    color: var(--shiply-on-status);
+  }
+  /* Brand patterns from the guide (public/brand). Decorative only: never behind text that needs
+     contrast. S tape: the S arrow repeated like packing tape (Cream at 15%, now and then Lime),
+     for Navy grounds. City route: a dotted Lime route over faint Cairo streets on the guide's Navy
+     gradient; on a tall panel only its right part shows, below the panel's text. */
+  .shiply-tape {
+    background-image: url('/brand/pattern-s-tape.svg');
+    background-size: 400px 163px;
+    background-repeat: repeat;
+  }
+  .shiply-route {
+    background-color: var(--shiply-navy);
+    background-image:
+      url('/brand/pattern-city-route.svg'),
+      radial-gradient(ellipse at 90% 0%, #1f4fcb 0%, #0b2c6e 45%, #082341 100%);
+    background-size:
+      auto 100%,
+      cover;
+    background-position:
+      right center,
+      center;
+    background-repeat: no-repeat;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Numbers, phones and order IDs stay left to right inside Arabic text. */
+  .ltr-iso {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Logo swap follows the same rule as the tokens: explicit theme first, then the OS. */
+  .logo-dark {
+    display: none;
+  }
+  :root[data-theme='dark'] .logo-light {
+    display: none;
+  }
+  :root[data-theme='dark'] .logo-dark {
+    display: block;
+  }
+  .shiply-on-navy .logo-light {
+    display: none;
+  }
+  .shiply-on-navy .logo-dark {
+    display: block;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .logo-light {
+      display: none;
+    }
+    :root:not([data-theme='light']) .logo-dark {
+      display: block;
+    }
+  }
+}
+
+/* Printed pages (invoices, payslips, reports) are plain black on white. */
+@media print {
+  body {
+    background: #fff;
+  }
+}
