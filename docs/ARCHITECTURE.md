@@ -44,17 +44,24 @@ functions, so a business rule exists in one place only.
 ## 4. Runtime and hosting
 
 * Render web service (Docker, region Frankfurt, free plan today). deploy/start.mjs:
-  1. applies database migrations (prisma migrate deploy),
-  2. loads starting data when SEED_ON_START is true (only missing rows),
-  3. starts the API on 127.0.0.1:API_PORT and the web app on $PORT,
-  4. optionally loads the demo month in the background when DEMO_LOAD is true.
+  1. swaps the database name in DATABASE_URL when DATABASE_NAME is set (live: shiplynow_live),
+  2. applies database migrations (prisma migrate deploy; skipped when every migration in the
+     image is already applied, so a sleeping free instance wakes faster),
+  3. runs deploy/prepare.mjs as its own process: the one time fresh start (FRESH_START), the
+     starting data when SEED_ON_START is true (only missing rows, once per release) and the demo
+     month when DEMO_LOAD is true, all before the servers start (while the demo month loads a
+     small page answers 503 on $PORT),
+  4. starts the API on 127.0.0.1:API_PORT and the web app on $PORT, each with a heap limit
+     (API_HEAP_MB, WEB_HEAP_MB).
 * Neon Postgres 16 with PostGIS (region eu central). Free plan, 1 GB limit.
 * The web app forwards every /api request to the API with a route handler, so cookies stay
   first party and the API is never exposed directly.
-* Deploys are started from Render (the Render MCP tool or the dashboard) after a push to the
-  ShiplyNow branch. GitHub Actions runs CI (lint, typecheck, tests) on every push.
-* Backups: Neon's restore window, plus backup.yml (nightly encrypted pg_dump). Note: scheduled
-  GitHub jobs only run from the default branch, so backup.yml must be on main to run.
+* Render deploys every push to the ShiplyNow branch (render.yaml autoDeploy); it does not wait
+  for CI. GitHub Actions runs CI (lint, typecheck, build and the three test suites as parallel
+  jobs) on pushes to main, ShiplyNow and claude/**.
+* Backups: Neon's restore window, plus backup.yml (nightly encrypted pg_dump of shiplynow_live).
+  Scheduled GitHub jobs only run from the default branch, so ShiplyNow must be the repository's
+  default branch for the nightly backup to run (docs/BACKUP.md).
 * The web app is installable on phones (manifest, app icons, full screen). No native apps.
 
 ## 5. API (apps/api)
@@ -469,9 +476,9 @@ one instance acts, and each has an idempotency key so running twice changes noth
 ## 12. Configuration
 
 One .env at the repo root, documented in .env.example. Key variables: DATABASE_URL,
-JWT_ACCESS_SECRET, API_PORT, API_URL, WEB_ORIGIN, SEED_ON_START, SEED_ADMIN_*, DEMO_LOAD,
-SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*, VAPID_*, SMTP_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL,
-JOBS_ENABLED. Business values (SLA minutes, fees, capacity, payroll rates, HR rules) are not in
+DATABASE_NAME, JWT_ACCESS_SECRET, API_PORT, API_URL, WEB_ORIGIN, SEED_ON_START, SEED_ADMIN_*,
+SEED_DEMO_PASSWORD, DEMO_LOAD, FRESH_START, SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*,
+VAPID_*, SMTP_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL, JOBS_ENABLED, API_HEAP_MB / WEB_HEAP_MB. Business values (SLA minutes, fees, capacity, payroll rates, HR rules) are not in
 env: they live in the settings table and are edited from each app's Configuration page.
 
 ## 13. Testing
@@ -482,8 +489,9 @@ env: they live in the settings table and are edited from each app's Configuratio
                       if any route has no access rule
     apps/web          Vitest (helpers, translations parity, colour contrast of the brand tokens)
 
-Run: pnpm -r typecheck, pnpm -r lint, prettier --check ., then each package's vitest.
-Screens are checked with Playwright screenshots during development.
+Run: pnpm lint (ESLint and Prettier), pnpm typecheck, then each package's vitest. There are no
+browser end to end tests (no Playwright suite) yet; screens are checked by hand, and the app icon
+PNGs were rendered once with Playwright.
 
 ## 14. Known limits today
 

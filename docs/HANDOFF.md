@@ -1,4 +1,4 @@
-# Handoff: where work stands (2026-11-10)
+# Handoff: where work stands (2026-11-17)
 
 ## Live on Render (branch ShiplyNow)
 
@@ -7,14 +7,16 @@ Shiply Now only. The merge with the Shiply parcel network was undone at the owne
 the Neon backup `backup-before-shiplynow-only-2026-11-09`.
 
 - Public website (Home, How it works, For brands, Contact; Our team hidden until people are sent)
-- Operations, Inventory, Merchants, Customers, Sales, HR, Accounting (phase A) and Settings
-  (phase B is built on its branch and waits for deployment)
+- Operations, Inventory, Merchants, Customers, Sales, HR, Accounting (UX phases A and B) and
+  Settings, with the UX phase C list views and document pages in every app
+- Review fixes of 2026-11-16 (security, money, operations, Shopify sync; steps 1 to 3 in the
+  CLAUDE.md decisions log)
 - Merchant contracts v2 with contract pricing, rider pay per delivery with the wallet
 - Database: `shiplynow_live` (the only database on the server), filled with the demo month.
   The service setting DATABASE_NAME points the app at it; deploy/prepare.mjs loads the starting
   data and the demo month alone before the servers start (512 MB instance).
 
-## Accounting UX phase B: built (branch claude/accounting-ux-b, not deployed)
+## Accounting UX phase B: built, merged into ShiplyNow and live
 
 Drill down reports (P&L, balance sheet, trial balance: account → lines → entry; period presets,
 comparison, store and merchant filters, PDF in English or Arabic, CSV and Excel), the bank
@@ -27,7 +29,7 @@ marked paid with a past day is booked at noon of that day; near amounts (within 
 only suggestions and never matched; a filtered (store or merchant) balance sheet or trial balance
 need not balance and says so.
 
-## UX phase C step 1 (Operations): built (branch claude/ux-phase-c, not deployed)
+## UX phase C step 1 (Operations): built, merged into ShiplyNow and live
 
 The Accounting building blocks now serve every app: one list query helper
 (packages/db/src/list-query.ts), APP_LISTS (packages/shared/src/app-lists.ts) answered by
@@ -51,7 +53,7 @@ report document page (/admin/damage/<id>). CLAUDE.md has the decision line "UX p
 - Old list links (/admin/orders?status=..., /admin/alerts?all=1, /admin/damage?status=settled)
   now open the list with its default filters; the dashboard's store queue link was updated.
 
-## UX phase C step 2 (Inventory): built (branch claude/ux-phase-c, not deployed)
+## UX phase C step 2 (Inventory): built, merged into ShiplyNow and live
 
 The Inventory app on the same building blocks: list views for stock (per store and product,
 low and out of stock, unit totals), shipments in (still to receive, more or fewer than listed),
@@ -83,12 +85,14 @@ should confirm:
 - Proposal PDF: yes or no
 - Our team page: people, roles, achievements, photos
 - Render settings: VAPID keys (phone notifications), SMTP (merchant emails)
-- Nightly backup workflow on main: approval
+- Nightly backup: make ShiplyNow the repository's default branch (scheduled workflows run only
+  from it), set BACKUP_DATABASE_URL to the direct address of shiplynow_live, run it once by hand
+  and try one restore (docs/BACKUP.md)
 - HR person or lawyer to check leave and penalty defaults
 - Real merchants and their contract prices (the live data is demo data)
 - Several "choices to confirm" listed in CLAUDE.md decision lines (rider pay, contracts, pricing)
 
-## UX phase C step 3 (Merchants and Customers): built (branch claude/ux-phase-c, not deployed)
+## UX phase C step 3 (Merchants and Customers): built, merged into ShiplyNow and live
 
 List views for merchants (sign up, Shopify, 60 minute price, contract in force, wallet,
 account manager; bulk approve sign ups, pause and open again), products (active, Shopify link,
@@ -116,7 +120,7 @@ decision line "UX phase C step 3 (Merchants and Customers)". Choices the owner s
 - The product page shows stock only in the reader's stores; there is no product delete or
   merge (unchanged).
 
-## UX phase C step 4 (Sales and HR): built (branch claude/ux-phase-c, not deployed)
+## UX phase C step 4 (Sales and HR): built, merged into ShiplyNow and live
 
 Phase C is done: every app now uses the Odoo style list views and document pages. Sales: the
 deals list next to the board (search by DEAL number, company, contact, phone or email; stage,

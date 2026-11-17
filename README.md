@@ -29,8 +29,8 @@ pnpm dev                    # API on :4000, web on :3000
 
 Open http://localhost:3000 and sign in with the seeded admin.
 
-The seed also creates demo accounts, all with `SEED_DEMO_PASSWORD` (or the admin password if
-that is not set): `staff.newcairo@shiplynow.local`, `staff.maadi@shiplynow.local`,
+The seed also creates demo accounts, all with `SEED_DEMO_PASSWORD` (locally `pnpm db:seed` falls
+back to the admin password when it is empty; on a server they get a random password instead): `staff.newcairo@shiplynow.local`, `staff.maadi@shiplynow.local`,
 `rider.newcairo@shiplynow.local`, `rider.maadi@shiplynow.local`, and the merchant login
 `merchant@evechantelle.example`. It loads 3 dark stores
 (New Cairo, Maadi, Zamalek) with zones and bins, the 27 governorates, the merchant
@@ -53,7 +53,9 @@ pnpm test        # needs `pnpm db:up`; db and API tests use TEST_DATABASE_URL an
 pnpm build
 ```
 
-CI runs the same four commands on every push and pull request.
+CI (.github/workflows/ci.yml) runs on pushes to main, ShiplyNow and claude/** and on other
+pull requests, as three parallel jobs: lint, typecheck, shared and web tests and the build; the db
+tests; the API tests (each with its own Postgres). There are no browser end to end tests yet.
 
 ## Auth
 

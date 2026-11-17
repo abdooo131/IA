@@ -34,6 +34,7 @@ You do not need to create tables or install PostGIS: the server does both on its
    | Setting | What to enter |
    | --- | --- |
    | `DATABASE_URL` | the Neon connection string from step 1 |
+   | `DATABASE_NAME` | optional: another database on the same Neon server; only the name at the end of `DATABASE_URL` is swapped (the live service sets `shiplynow_live`). Leave empty to use `DATABASE_URL` as it is |
    | `SEED_ADMIN_EMAIL` | the admin login you want, for example `admin@yourcompany.com` |
    | `SEED_ADMIN_PASSWORD` | a strong password, at least 10 characters |
    | `SEED_DEMO_PASSWORD` | password for the demo staff, rider and merchant accounts (empty: they get a random password nobody knows, never the admin's) |
