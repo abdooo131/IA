@@ -10538,6 +10538,7 @@
     "deleteFavorite": "حذف {name}",
     "range": "{from}–{to} من {total}",
     "grouped": "{count} سجل في {groups} مجموعات",
+    "truncated": "القايمة دي بتدور في أحدث {max} بس: اختار أيام أو مخزن أو فلتر علشان توصل للأقدم.",
     "previousPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
     "perPage": "لكل صفحة",

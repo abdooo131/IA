@@ -6,6 +6,7 @@ import {
   exportXlsx,
   facetsOf,
   hasListState,
+  LIST_MAX_ROWS,
   LIST_PAGE_SIZES,
   type ListGroup,
   type ListState,
@@ -260,6 +261,12 @@ export function ListView({
           {data.groups
             ? t('grouped', { count: data.total, groups: data.groups.length })
             : t('range', { from, to, total: data.total })}
+          {/* Grouped or searched in a way only the newest rows could answer: say so. */}
+          {data.truncated && (
+            <span className="ms-2 text-danger">
+              {t('truncated', { max: LIST_MAX_ROWS.toLocaleString(locale) })}
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <ExportMenu config={config} columns={visible} state={state} selected={selected} />

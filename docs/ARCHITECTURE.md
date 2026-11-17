@@ -150,6 +150,14 @@ app (Accounting uses them first):
   for the keys of `FINANCE_LISTS` (packages/shared/src/finance-lists.ts); `queryFinanceList`
   is the one helper behind `GET /finance/lists/:id`. A new list adds a meta entry, a loader and
   a definition, then a page with `FinanceListPage`.
+- **Lists in the database** (review step 4): the busiest lists (orders, alerts, stock in
+  packages/db/src/app-lists.ts, and the ledger lines in finance/drill.ts) also carry SQL twins
+  of their filters, value filters, search and sorts (`SqlList`, packages/db/src/list-sql.ts;
+  typed search through the `sn_fold` SQL function, the twin of `foldSearch`). When the address
+  has a twin for everything and is not grouped, the database counts, sums and pages every row;
+  otherwise the twins narrow the load before the newest 5000 rows go through `runList`, and the
+  answer carries `truncated` (shown above the list) when rows were left out.
+  packages/db/test/list-sql.test.ts runs the same addresses both ways.
 - **DocumentPage** (server) renders a `DocDescriptor` (`GET /finance/documents/:type/:id`,
   packages/db/src/finance/documents.ts): breadcrumbs, previous/next (session storage of the
   list the person came from), status bar, action buttons, smart buttons, fields, lines and the

@@ -10595,6 +10595,7 @@
     "deleteFavorite": "Delete {name}",
     "range": "{from}–{to} of {total}",
     "grouped": "{count} records in {groups} groups",
+    "truncated": "Only the newest {max} were looked at: choose days, a store or a filter to see older ones.",
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "perPage": "Per page",
