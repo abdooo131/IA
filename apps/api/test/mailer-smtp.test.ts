@@ -95,7 +95,7 @@ describe('SmtpMailer (nodemailer)', () => {
     const mailer = mailerFor(okPort);
     expect(mailer.enabled).toBe(true);
     await mailer.send({
-      to: 'merchant@example.test',
+      to: ['merchant@example.test'],
       subject: 'Statement مارس',
       html: '<p>Hello</p>',
       text: 'Hello',
@@ -116,7 +116,7 @@ describe('SmtpMailer (nodemailer)', () => {
   it('reports only the server answer code when the server refuses', async () => {
     const mailer = mailerFor(refusingPort);
     const error = await mailer
-      .send({ to: 'nobody@example.test', subject: 'x', html: '<p>x</p>', text: 'x' })
+      .send({ to: ['nobody@example.test'], subject: 'x', html: '<p>x</p>', text: 'x' })
       .then(
         () => null,
         (e: Error) => e,
