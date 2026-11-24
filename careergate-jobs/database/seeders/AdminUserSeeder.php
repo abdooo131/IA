@@ -19,7 +19,8 @@ class AdminUserSeeder extends Seeder
             return;
         }
 
-        User::updateOrCreate(
+        // Only create; never touch an existing account (password, role, status).
+        User::firstOrCreate(
             ['email' => $email],
             ['name' => config('careergate.admin.name'), 'password' => $password, 'role' => Role::Admin, 'is_active' => true],
         );

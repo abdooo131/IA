@@ -7,7 +7,8 @@ use App\Http\Controllers\Admin\TeamController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->group(function () {
-    Route::middleware('guest')->group(function () {
+    Route::middleware(['guest', 'admin.locale'])->group(function () {
+        Route::post('guest-language', [LanguageController::class, 'guest'])->name('admin.guest-language');
         Route::get('login', [LoginController::class, 'create'])->name('admin.login');
         Route::post('login', [LoginController::class, 'store'])->name('admin.login.store');
         Route::get('forgot-password', [PasswordResetController::class, 'request'])->name('password.request');

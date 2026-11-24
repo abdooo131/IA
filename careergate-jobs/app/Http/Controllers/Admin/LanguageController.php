@@ -16,4 +16,13 @@ class LanguageController extends Controller
 
         return back();
     }
+
+    public function guest(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['locale' => ['required', 'in:en,ar']]);
+
+        $request->session()->put('admin_locale', $data['locale']);
+
+        return back();
+    }
 }

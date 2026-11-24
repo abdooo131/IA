@@ -98,4 +98,12 @@ class AuthTest extends TestCase
         ])->assertRedirect('/admin/login');
         $this->post('/admin/login', ['email' => $u->email, 'password' => 'new-secret-pass'])->assertRedirect('/admin');
     }
+
+    public function test_guest_can_switch_login_page_to_arabic(): void
+    {
+        $this->get('/admin/login')->assertSee('dir="ltr"', false)->assertSee(__('admin.auth.title', [], 'en'));
+        $this->post('/admin/guest-language', ['locale' => 'ar'])->assertRedirect();
+        $this->get('/admin/login')->assertSee('dir="rtl"', false)->assertSee(__('admin.auth.title', [], 'ar'));
+        $this->post('/admin/guest-language', ['locale' => 'fr'])->assertSessionHasErrors('locale');
+    }
 }

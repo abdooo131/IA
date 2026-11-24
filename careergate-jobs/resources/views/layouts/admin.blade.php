@@ -74,6 +74,11 @@
     <div class="flex min-h-screen flex-col items-center justify-center px-4 py-10">
         <div class="w-full max-w-md">
             <img src="{{ asset('brand/careergate-logo-for-light-bg.png') }}" alt="Career Gate" class="mx-auto mb-8 h-12 w-auto">
+            <form method="POST" action="{{ route('admin.guest-language') }}" class="mb-3 flex justify-end gap-2 text-sm">
+                @csrf
+                <button name="locale" value="en" class="rounded px-2 py-1 {{ app()->getLocale() === 'en' ? 'bg-cg-yellow' : 'bg-white' }}">EN</button>
+                <button name="locale" value="ar" class="rounded px-2 py-1 {{ app()->getLocale() === 'ar' ? 'bg-cg-yellow' : 'bg-white' }}">عربي</button>
+            </form>
             <div class="rounded-lg bg-white p-6 shadow">
                 @if (session('status'))
                     <div class="mb-4 rounded border border-cg-yellow bg-cg-yellow-light px-4 py-3 text-sm" role="status">{{ session('status') }}</div>
