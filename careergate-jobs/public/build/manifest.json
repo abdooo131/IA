@@ -1,6 +1,21 @@
 {
+  "node_modules/browser-image-compression/dist/browser-image-compression.mjs": {
+    "file": "assets/browser-image-compression-C_NOPZIN.js",
+    "name": "browser-image-compression",
+    "src": "node_modules/browser-image-compression/dist/browser-image-compression.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/heic2any/dist/heic2any.js": {
+    "file": "assets/heic2any-DOeLxT0b.js",
+    "name": "heic2any",
+    "src": "node_modules/heic2any/dist/heic2any.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/cv-upload.js"
+    ]
+  },
   "resources/css/app.css": {
-    "file": "assets/app-BaDdj36i.css",
+    "file": "assets/app-CEKp0db3.css",
     "name": "app",
     "names": [
       "app.css"
@@ -9,9 +24,25 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BvRk9kiK.js",
+    "file": "assets/app-BmRF8yMY.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/cv-upload.js"
+    ]
+  },
+  "resources/js/cv-upload.js": {
+    "file": "assets/cv-upload-HzkXcyCU.js",
+    "name": "cv-upload",
+    "src": "resources/js/cv-upload.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ],
+    "dynamicImports": [
+      "node_modules/heic2any/dist/heic2any.js",
+      "node_modules/browser-image-compression/dist/browser-image-compression.mjs"
+    ]
   }
 }

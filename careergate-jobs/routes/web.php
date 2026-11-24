@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Public\ApplyController;
 use App\Http\Controllers\Public\JobController;
 use App\Http\Controllers\Public\PageController;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,9 @@ use Illuminate\Support\Facades\Route;
 $publicRoutes = function () {
     Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');
     Route::get('/jobs/{jobPosting}', [JobController::class, 'show'])->name('jobs.show');
+    Route::post('/jobs/{jobPosting}/apply', [ApplyController::class, 'store'])
+        ->middleware('throttle:apply')->name('jobs.apply');
+    Route::get('/jobs/{jobPosting}/thanks', [ApplyController::class, 'thanks'])->name('jobs.thanks');
     Route::get('/about', [PageController::class, 'about'])->name('about');
 };
 

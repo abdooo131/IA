@@ -20,6 +20,10 @@
 @section('content')
     <a href="{{ \App\Support\LocalizedRoute::url('jobs.index') }}" class="text-sm underline">&larr; {{ __('public.nav.jobs') }}</a>
 
+    @if (session('job_closed'))
+        <div class="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 font-semibold text-red-800" role="alert">{{ __('public.job_closed_notice') }}</div>
+    @endif
+
     <h1 class="mt-3 text-2xl font-bold sm:text-3xl">{{ $title }}</h1>
 
     <dl class="mt-4 grid grid-cols-1 gap-3 rounded-lg bg-cg-yellow-light p-4 text-sm sm:grid-cols-2">
@@ -57,10 +61,7 @@
     @if ($accepting)
         <section id="apply" class="mt-8 scroll-mt-4 rounded-lg border border-cg-yellow p-4">
             <h2 class="text-xl font-bold">{{ __('public.apply_now') }}</h2>
-            @includeIf('public.jobs._apply_form', ['job' => $job])
-            @unless (view()->exists('public.jobs._apply_form'))
-                <p class="mt-2 text-cg-navy-light">{{ __('public.apply_soon') }}</p>
-            @endunless
+            @include('public.jobs._apply_form', ['job' => $job])
         </section>
     @else
         <section class="mt-8 rounded-lg bg-cg-yellow-light p-4">

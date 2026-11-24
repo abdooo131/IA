@@ -15,5 +15,9 @@
     },
     "optionalDependencies": {
         "@laravel/multiplex": "^0.4.1"
+    },
+    "dependencies": {
+        "browser-image-compression": "^2.0.2",
+        "heic2any": "^0.0.4"
     }
 }
