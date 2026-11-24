@@ -31,7 +31,7 @@ class BuildShortlistExport implements ShouldQueue
 
     public function failed(?Throwable $e): void
     {
-        Log::error('Shortlist export failed.', ['export_id' => $this->export->id, 'exception' => $e ? $e::class : null, 'message' => $e?->getMessage()]);
+        Log::error('Shortlist export failed.', ['export_id' => $this->export->id, 'exception' => $e ? $e::class : null]);
 
         // Short message only: no stack trace and no personal data.
         $this->export->forceFill([

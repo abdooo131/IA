@@ -109,7 +109,7 @@ class ExportTest extends TestCase
         $zip->open(Storage::disk('local')->path($export->zip_path));
         $names = [$zip->getNameIndex(0), $zip->getNameIndex(1)];
         sort($names);
-        $this->assertSame(['01 ABC/cv.pdf', '01 ABC/cv.pdf (2)'], $names);
+        $this->assertSame(['01 ABC/cv (2).pdf', '01 ABC/cv.pdf'], $names);
     }
 
     public function test_download_requires_login_and_ready(): void
@@ -171,5 +171,24 @@ class ExportTest extends TestCase
         $this->assertNotNull(Export::find($new->id));
         Storage::disk('local')->assertMissing("exports/{$old->id}/a.xlsx");
         Storage::disk('local')->assertExists("exports/{$new->id}/a.xlsx");
+    }
+
+    public function test_queue_retry_after_exceeds_export_timeout(): void
+    {
+        $job = new BuildShortlistExport(Export::factory()->make());
+        $this->assertGreaterThan($job->timeout, config('queue.connections.database.retry_after'));
+    }
+
+    public function test_only_yes_no_questions_are_converted(): void
+    {
+        Storage::fake('local');
+        $job = JobPosting::factory()->create(['questions' => [
+            ['id' => 'q1', 'type' => 'text', 'label_en' => 'Notice?', 'required' => false],
+            ['id' => 'q2', 'type' => 'yes_no', 'label_en' => 'Car?', 'required' => false],
+        ]]);
+        Application::factory()->for($job)->create(['stage' => Stage::Shortlisted, 'answers' => ['q1' => 'no', 'q2' => 'no']]);
+        $this->actingAs(User::factory()->create())->post("/admin/jobs/{$job->id}/exports", []);
+        $rows = $this->readXlsx(Storage::disk('local')->path(Export::sole()->xlsx_path));
+        $this->assertSame(['no', 'No'], array_slice($rows[1], 8, 2));
     }
 }

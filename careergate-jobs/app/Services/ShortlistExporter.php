@@ -35,15 +35,16 @@ class ShortlistExporter
         $zipFull = $disk->path($zipPath);
 
         $questions = collect($job->questions ?? [])->filter(fn ($q) => is_array($q) && isset($q['id']))->values();
+        $types = $questions->mapWithKeys(fn ($q) => [$q['id'] => $q['type'] ?? null])->all();
 
         $writer = new Writer;
-        $writer->openToFile($xlsxFull);
         $zip = new ZipArchive;
-        if ($zip->open($zipFull, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new RuntimeException('Could not create the ZIP file.');
-        }
 
         try {
+            $writer->openToFile($xlsxFull);
+            if ($zip->open($zipFull, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new RuntimeException('Could not create the ZIP file.');
+            }
             $header = ['Name', 'Phone', 'Email', 'City', 'Area', 'Age', 'Stage', 'Applied on'];
             foreach ($questions as $q) {
                 $header[] = (string) (($q['label_en'] ?? '') !== '' ? $q['label_en'] : ($q['label_ar'] ?? $q['id']));
@@ -63,7 +64,7 @@ class ShortlistExporter
                 ->orderBy('applicants.full_name')
                 ->orderBy('applications.id')
                 ->with(['applicant', 'cvFiles'])
-                ->chunk(100, function ($applications) use (&$n, &$entries, &$used, $writer, $zip, $questions, $disk, $export) {
+                ->chunk(100, function ($applications) use (&$n, &$entries, &$used, $writer, $zip, $questions, $types, $disk, $export) {
                     foreach ($applications as $application) {
                         $n++;
                         $applicant = $application->applicant;
@@ -79,7 +80,7 @@ class ShortlistExporter
                             $application->created_at?->timezone('Africa/Cairo')->format('Y-m-d'),
                         ];
                         foreach ($questions as $q) {
-                            $row[] = $this->answerText($answers[$q['id']] ?? null);
+                            $row[] = $this->answerText($answers[$q['id']] ?? null, ($types[$q['id']] ?? null) === 'yes_no');
                         }
                         $writer->addRow(Row::fromValues($row));
 
@@ -124,15 +125,15 @@ class ShortlistExporter
         $export->forceFill(['xlsx_path' => $xlsxPath, 'zip_path' => $zipPath])->save();
     }
 
-    private function answerText(mixed $value): string
+    private function answerText(mixed $value, bool $yesNo = false): string
     {
         if ($value === null) {
             return '';
         }
-        if ($value === 'yes' || $value === true) {
+        if ($yesNo && ($value === 'yes' || $value === true)) {
             return 'Yes';
         }
-        if ($value === 'no' || $value === false) {
+        if ($yesNo && ($value === 'no' || $value === false)) {
             return 'No';
         }
         if (is_array($value)) {
@@ -150,7 +151,14 @@ class ShortlistExporter
         $name = ltrim($name, ". \t");
         $name = rtrim($name, '. ');
 
-        return $name === '' ? $fallback : mb_substr($name, 0, 120);
+        if (mb_strlen($name) > 120) {
+            $ext = pathinfo($name, PATHINFO_EXTENSION);
+            $ext = ($ext !== '' && mb_strlen($ext) <= 10) ? '.'.$ext : '';
+            $stem = mb_substr($name, 0, 120 - mb_strlen($ext));
+            $name = rtrim($stem, '. ').$ext;
+        }
+
+        return $name === '' ? $fallback : $name;
     }
 
     /** @param array<string, bool> $used */
@@ -159,7 +167,9 @@ class ShortlistExporter
         $candidate = $name;
         $i = 2;
         while (isset($used[mb_strtolower($folder.'/'.$candidate)])) {
-            $candidate = $name.' ('.$i++.')';
+            $ext = pathinfo($name, PATHINFO_EXTENSION);
+            $stem = $ext !== '' ? mb_substr($name, 0, -(mb_strlen($ext) + 1)) : $name;
+            $candidate = $stem.' ('.$i++.')'.($ext !== '' ? '.'.$ext : '');
         }
         $used[mb_strtolower($folder.'/'.$candidate)] = true;
 
