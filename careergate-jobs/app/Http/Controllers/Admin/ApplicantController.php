@@ -8,7 +8,9 @@ use App\Models\Applicant;
 use App\Models\Application;
 use App\Models\JobPosting;
 use App\Models\StageChange;
+use App\Services\ApplicantEraser;
 use App\Services\CvStorage;
+use App\Support\PhoneNumber;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,5 +74,19 @@ class ApplicantController extends Controller
 
         return redirect()->route('admin.applications.show', $application)
             ->with('status', __('admin.talent.added', ['job' => $job->localized('title')]));
+    }
+
+    /** Permanent deletion (admin only). The admin must type the applicant's phone to confirm. */
+    public function destroy(Request $request, Applicant $applicant, ApplicantEraser $eraser)
+    {
+        $data = $request->validate(['confirm' => ['required', 'string']]);
+
+        if (PhoneNumber::normalize($data['confirm']) !== $applicant->phone) {
+            return back()->withErrors(['confirm' => __('admin.delete_applicant.mismatch')]);
+        }
+
+        $eraser->erase($applicant);
+
+        return redirect('/admin/talent-pool')->with('status', __('admin.delete_applicant.done'));
     }
 }

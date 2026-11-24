@@ -214,6 +214,20 @@
                     @endforelse
                 </ul>
             </section>
+
+            @if ($me->isAdmin())
+                <section class="rounded-lg border border-red-300 bg-white p-4 shadow">
+                    <h2 class="text-lg font-semibold text-red-800">{{ __('admin.delete_applicant.title') }}</h2>
+                    <p class="mt-2 text-sm">{{ __('admin.delete_applicant.warning') }}</p>
+                    <form method="POST" action="{{ route('admin.applicants.destroy', $applicant) }}" class="mt-3 text-sm">
+                        @csrf @method('DELETE')
+                        <label for="confirm-delete" class="font-medium">{{ __('admin.delete_applicant.label', ['phone' => $phoneLocal]) }}</label>
+                        <input id="confirm-delete" type="text" name="confirm" dir="ltr" required autocomplete="off" inputmode="tel" class="mt-2 w-full rounded border border-gray-300 px-3 py-2">
+                        @error('confirm')<p class="mt-1 text-red-700" role="alert">{{ $message }}</p>@enderror
+                        <button class="mt-3 rounded bg-red-700 px-4 py-2 text-white hover:bg-red-800">{{ __('admin.delete_applicant.submit') }}</button>
+                    </form>
+                </section>
+            @endif
         </div>
     </div>
 @endsection

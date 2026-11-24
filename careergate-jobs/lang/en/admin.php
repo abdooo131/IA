@@ -249,4 +249,13 @@ return [
             'copy_failed' => 'Could not copy the CV files. Nothing was added; please try again.',
         ],
     ],
+
+    'delete_applicant' => [
+        'title' => 'Delete applicant permanently',
+        'warning' => 'This permanently erases this person, all of their applications, CV files, comments and stage history. This cannot be undone. Exports already generated are not changed.',
+        'label' => 'To confirm, type the applicant\'s phone number (:phone)',
+        'submit' => 'Delete permanently',
+        'done' => 'The applicant and all related data were permanently deleted.',
+        'mismatch' => 'The phone number does not match. Nothing was deleted.',
+    ],
 ];

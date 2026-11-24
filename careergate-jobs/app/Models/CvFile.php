@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Observers\CvFileObserver;
 use Database\Factories\CvFileFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[ObservedBy(CvFileObserver::class)]
 class CvFile extends Model
 {
     /** @use HasFactory<CvFileFactory> */

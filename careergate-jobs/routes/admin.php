@@ -55,6 +55,7 @@ Route::prefix('admin')->group(function () {
         Route::middleware('admin')->group(function () {
             Route::delete('jobs/{jobPosting:id}', [JobPostingController::class, 'destroy'])->name('jobs.destroy');
             Route::delete('clients/{client}', [ClientCompanyController::class, 'destroy'])->name('clients.destroy');
+            Route::delete('applicants/{applicant}', [ApplicantController::class, 'destroy'])->name('applicants.destroy');
             Route::get('team', [TeamController::class, 'index'])->name('team.index');
             Route::post('team', [TeamController::class, 'store'])->name('team.store');
             Route::patch('team/{user}', [TeamController::class, 'update'])->name('team.update');
