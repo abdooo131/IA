@@ -28,3 +28,7 @@ Route::middleware('public.locale')->group(function () use ($publicRoutes) {
 });
 
 require __DIR__.'/admin.php';
+
+// Unknown URLs: sending them through the web group (session + auth) lets the branded 404 page
+// pick the signed in team member's language on /admin/... URLs.
+Route::fallback(fn () => abort(404));

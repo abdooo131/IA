@@ -18,7 +18,7 @@
     <style>
         *{box-sizing:border-box}
         body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#fff;color:#141F2D;
-            font-family:{{ $rtl ? "'Cairo'" : "'Inter'" }},system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6}
+            font-family:{{ $rtl ? "'Cairo'" : "'Inter'" }},system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
         header{border-bottom:1px solid #FFF3C4;padding:12px 16px}
         header img{height:40px;width:auto;display:block}
         main{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 16px;text-align:center}
