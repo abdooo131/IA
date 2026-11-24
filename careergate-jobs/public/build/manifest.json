@@ -6,7 +6,7 @@
     "isDynamicEntry": true
   },
   "node_modules/heic2any/dist/heic2any.js": {
-    "file": "assets/heic2any-gZ-EvThj.js",
+    "file": "assets/heic2any-DZYYAwh4.js",
     "name": "heic2any",
     "src": "node_modules/heic2any/dist/heic2any.js",
     "isDynamicEntry": true,
@@ -15,7 +15,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-DfmRRltH.css",
+    "file": "assets/app-BMD30QYw.css",
     "name": "app",
     "names": [
       "app.css"
@@ -23,17 +23,24 @@
     "src": "resources/css/app.css",
     "isEntry": true
   },
+  "resources/js/admin-job-form.js": {
+    "file": "assets/admin-job-form-CLn6N1yR.js",
+    "name": "admin-job-form",
+    "src": "resources/js/admin-job-form.js",
+    "isDynamicEntry": true
+  },
   "resources/js/app.js": {
-    "file": "assets/app-CrxQfz-A.js",
+    "file": "assets/app-Cu1ZLtpi.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "resources/js/cv-upload.js"
+      "resources/js/cv-upload.js",
+      "resources/js/admin-job-form.js"
     ]
   },
   "resources/js/cv-upload.js": {
-    "file": "assets/cv-upload-RR92x38p.js",
+    "file": "assets/cv-upload-Dj2vlv4r.js",
     "name": "cv-upload",
     "src": "resources/js/cv-upload.js",
     "isDynamicEntry": true,

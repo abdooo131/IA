@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ClientCompanyController;
+use App\Http\Controllers\Admin\JobPostingController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\LoginController;
 use App\Http\Controllers\Admin\PasswordResetController;
@@ -22,7 +24,19 @@ Route::prefix('admin')->group(function () {
         Route::view('/', 'admin.dashboard')->name('dashboard');
         Route::post('language', [LanguageController::class, 'update'])->name('language.update');
 
+        Route::resource('clients', ClientCompanyController::class)->except(['show', 'destroy'])->parameters(['clients' => 'client']);
+        Route::get('jobs', [JobPostingController::class, 'index'])->name('jobs.index');
+        Route::get('jobs/create', [JobPostingController::class, 'create'])->name('jobs.create');
+        Route::post('jobs', [JobPostingController::class, 'store'])->name('jobs.store');
+        Route::get('jobs/{jobPosting:id}', [JobPostingController::class, 'show'])->name('jobs.show');
+        Route::get('jobs/{jobPosting:id}/edit', [JobPostingController::class, 'edit'])->name('jobs.edit');
+        Route::put('jobs/{jobPosting:id}', [JobPostingController::class, 'update'])->name('jobs.update');
+        Route::post('jobs/{jobPosting:id}/duplicate', [JobPostingController::class, 'duplicate'])->name('jobs.duplicate');
+        Route::patch('jobs/{jobPosting:id}/status', [JobPostingController::class, 'status'])->name('jobs.status');
+
         Route::middleware('admin')->group(function () {
+            Route::delete('jobs/{jobPosting:id}', [JobPostingController::class, 'destroy'])->name('jobs.destroy');
+            Route::delete('clients/{client}', [ClientCompanyController::class, 'destroy'])->name('clients.destroy');
             Route::get('team', [TeamController::class, 'index'])->name('team.index');
             Route::post('team', [TeamController::class, 'store'])->name('team.store');
             Route::patch('team/{user}', [TeamController::class, 'update'])->name('team.update');

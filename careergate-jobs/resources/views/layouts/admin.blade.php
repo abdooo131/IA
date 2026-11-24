@@ -67,6 +67,9 @@
             @if (session('status'))
                 <div class="mb-6 rounded border border-cg-yellow bg-cg-yellow-light px-4 py-3 text-sm" role="status">{{ session('status') }}</div>
             @endif
+            @foreach (['client', 'job', 'status'] as $errKey)
+                @error($errKey)<div class="mb-6 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{{ $message }}</div>@enderror
+            @endforeach
             @yield('content')
         </main>
     </div>
