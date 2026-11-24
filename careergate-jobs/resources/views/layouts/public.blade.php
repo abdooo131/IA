@@ -20,6 +20,7 @@
             </a>
             <nav class="flex items-center gap-4 text-sm font-semibold">
                 <a href="{{ \App\Support\LocalizedRoute::url('jobs.index') }}" class="hover:text-cg-navy-light">{{ __('public.nav.jobs') }}</a>
+                <a href="{{ \App\Support\LocalizedRoute::url('about') }}" class="hover:text-cg-navy-light">{{ __('public.nav_about') }}</a>
                 <a href="{{ \App\Support\LocalizedRoute::switchUrl(app()->getLocale() === 'ar' ? 'en' : 'ar') }}"
                    class="rounded bg-cg-yellow px-3 py-1 text-cg-navy hover:bg-cg-yellow-light">{{ __('public.nav.language') }}</a>
             </nav>

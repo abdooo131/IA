@@ -1,15 +1,25 @@
 <?php
 
+use App\Http\Controllers\Public\JobController;
+use App\Http\Controllers\Public\PageController;
 use Illuminate\Support\Facades\Route;
 
-// Public site: English at "/", Arabic under "/ar" (route names prefixed "ar.").
-Route::middleware('public.locale')->group(function () {
-    Route::redirect('/', '/jobs');
-    Route::view('/jobs', 'public.jobs.index')->name('jobs.index');
+// Public routes are defined once and registered for both locales:
+// English at "/", Arabic under "/ar" (route names prefixed "ar.").
+// Add future public routes inside $publicRoutes.
+$publicRoutes = function () {
+    Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');
+    Route::get('/jobs/{jobPosting}', [JobController::class, 'show'])->name('jobs.show');
+    Route::get('/about', [PageController::class, 'about'])->name('about');
+};
 
-    Route::prefix('ar')->as('ar.')->group(function () {
+Route::middleware('public.locale')->group(function () use ($publicRoutes) {
+    Route::redirect('/', '/jobs');
+    $publicRoutes();
+
+    Route::prefix('ar')->as('ar.')->group(function () use ($publicRoutes) {
         Route::redirect('/', '/ar/jobs');
-        Route::view('/jobs', 'public.jobs.index')->name('jobs.index');
+        $publicRoutes();
     });
 });
 

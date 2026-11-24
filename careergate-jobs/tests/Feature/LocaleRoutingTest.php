@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Support\LocalizedRoute;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class LocaleRoutingTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_english_and_arabic_home_render_with_direction(): void
     {
         $this->get('/jobs')->assertOk()->assertSee('lang="en"', false)->assertSee('dir="ltr"', false);
