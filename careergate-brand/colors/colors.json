@@ -1,0 +1,7 @@
+{
+  "yellow":       { "hex": "#FEC401", "rgb": [254, 196, 1] },
+  "yellow-light": { "hex": "#FFF3C4", "rgb": [255, 243, 196] },
+  "navy":         { "hex": "#141F2D", "rgb": [20, 31, 45] },
+  "navy-light":   { "hex": "#24344A", "rgb": [36, 52, 74] },
+  "white":        { "hex": "#FFFFFF", "rgb": [255, 255, 255] }
+}
