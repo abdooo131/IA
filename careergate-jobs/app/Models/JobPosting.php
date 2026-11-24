@@ -34,7 +34,7 @@ class JobPosting extends Model
     {
         static::creating(function (JobPosting $job) {
             if (empty($job->slug)) {
-                $base = Str::slug((string) $job->title_en) ?: 'job';
+                $base = Str::slug((string) ($job->title_en ?: $job->title_ar)) ?: 'job';
                 do {
                     $slug = $base.'-'.Str::lower(Str::random(6));
                 } while (static::where('slug', $slug)->exists());

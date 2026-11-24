@@ -62,9 +62,27 @@ class ProductionConfigTest extends TestCase
         $this->get('/ar/_expired')->assertStatus(419)->assertSee('dir="rtl"', false);
     }
 
+    public function test_branded_403_and_405_pages(): void
+    {
+        config(['app.debug' => false]);
+        \Illuminate\Support\Facades\Route::get('/__t403', fn () => abort(403));
+        $this->get('/__t403')->assertForbidden()->assertSee('Access denied')->assertSee('dir="ltr"', false);
+        \Illuminate\Support\Facades\Route::get('/ar/__t403', fn () => abort(403));
+        $this->get('/ar/__t403')->assertForbidden()->assertSee('غير مسموح بالدخول')->assertSee('dir="rtl"', false);
+        app()->setLocale('en');
+        $this->post('/jobs')->assertStatus(405)->assertSee('Page not available');
+        $this->post('/ar/jobs')->assertStatus(405)->assertSee('الصفحة غير متاحة');
+    }
+
+    public function test_hsts_header_only_on_secure_requests(): void
+    {
+        $this->get('/jobs')->assertHeaderMissing('Strict-Transport-Security');
+        $this->get('https://localhost/jobs')->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+    }
+
     public function test_every_error_view_renders_in_both_languages(): void
     {
-        foreach ([404, 419, 429, 500, 503] as $code) {
+        foreach ([403, 404, 405, 419, 429, 500, 503] as $code) {
             foreach (['en', 'ar'] as $locale) {
                 app()->setLocale($locale);
                 $html = view("errors.$code", ['exception' => new \Symfony\Component\HttpKernel\Exception\HttpException($code)])->render();

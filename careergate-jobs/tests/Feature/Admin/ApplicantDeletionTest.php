@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\Application;
 use App\Models\Comment;
 use App\Models\CvFile;
+use App\Models\Export;
 use App\Models\StageChange;
 use App\Models\User;
 use App\Services\ApplicantEraser;
@@ -89,5 +90,25 @@ class ApplicantDeletionTest extends TestCase
             ->assertOk()->assertDontSee('/admin/applicants/'.$app->applicant_id, false);
         $this->actingAs(User::factory()->admin()->create())->get("/admin/applications/{$app->id}")
             ->assertOk()->assertSee('/admin/applicants/'.$app->applicant_id, false);
+    }
+
+    public function test_exports_of_the_applicants_jobs_are_removed_with_their_files(): void
+    {
+        Storage::fake('local');
+        $app = Application::factory()->create();
+        $other = Application::factory()->create();
+        $export = Export::factory()->create(['job_posting_id' => $app->job_posting_id, 'status' => 'ready']);
+        $otherExport = Export::factory()->create(['job_posting_id' => $other->job_posting_id, 'status' => 'ready']);
+        Storage::disk('local')->put("exports/{$export->id}/shortlist.zip", 'x');
+        Storage::disk('local')->put("exports/{$otherExport->id}/shortlist.zip", 'x');
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->delete("/admin/applicants/{$app->applicant_id}", ['confirm' => $app->applicant->phone])
+            ->assertRedirect('/admin/talent-pool');
+
+        $this->assertModelMissing($export);
+        $this->assertFalse(Storage::disk('local')->exists("exports/{$export->id}"));
+        $this->assertModelExists($otherExport);
+        Storage::disk('local')->assertExists("exports/{$otherExport->id}/shortlist.zip");
     }
 }

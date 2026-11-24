@@ -35,14 +35,14 @@ class TalentPoolController extends Controller
 
         $best = TalentPoolQuery::bestStages($applicants->pluck('id')->all());
 
-        $openJobs = JobPosting::open()->orderBy('title_en')->get()
+        $openJobs = JobPosting::open()->orderByRaw('COALESCE(title_en, title_ar)')->get()
             ->filter(fn (JobPosting $j) => $j->isAcceptingApplications())->values();
 
         return view('admin.talent-pool.index', [
             'applicants' => $applicants,
             'best' => $best,
             'openJobs' => $openJobs,
-            'allJobs' => JobPosting::orderBy('title_en')->get(['id', 'title_en', 'title_ar']),
+            'allJobs' => JobPosting::orderByRaw('COALESCE(title_en, title_ar)')->get(['id', 'title_en', 'title_ar']),
             'cities' => Applicant::whereNotNull('city')->distinct()->orderBy('city')->pluck('city'),
             'filters' => array_merge(array_fill_keys(['q', 'city', 'area', 'age_min', 'age_max', 'best_stage', 'job_id', 'applied_from', 'applied_to'], ''), array_map(fn ($v) => (string) $v, $filters)),
         ]);

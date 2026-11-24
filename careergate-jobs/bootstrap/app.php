@@ -7,6 +7,8 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Middleware\ValidatePostSize;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -51,6 +53,27 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return back()->withInput($request->except('cv'))
                 ->withErrors(['form' => __('public.too_many_requests', [], $locale)]);
+        });
+        // An expired session on the apply POST: send the applicant back to the job page with what they
+        // typed instead of an error page. (The handler has already turned the TokenMismatchException
+        // into a 419 HttpException by the time render callbacks run.)
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if ($e->getStatusCode() !== 419 && ! ($e->getPrevious() instanceof TokenMismatchException)) {
+                return null;
+            }
+            if ($request->expectsJson() || ! $request->routeIs('jobs.apply', 'ar.jobs.apply')) {
+                return null;
+            }
+            $locale = $request->segment(1) === 'ar' ? 'ar' : 'en';
+            $job = $request->route('jobPosting');
+            $slug = $job instanceof \App\Models\JobPosting ? $job->slug : (string) $job;
+            if ($request->hasSession()) {
+                $request->session()->regenerateToken();
+            }
+
+            return redirect(\App\Support\LocalizedRoute::url('jobs.show', [$slug], $locale).'#apply')
+                ->withInput($request->except(['cv', 'cg_hp_field', '_token']))
+                ->withErrors(['form' => __('public.session_expired', [], $locale)]);
         });
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),

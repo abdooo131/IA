@@ -41,8 +41,9 @@ class ApplicantController extends Controller
             return $fail('no_cv');
         }
 
+        $copied = [];
         try {
-            $application = DB::transaction(function () use ($applicant, $job, $source, $request, $storage) {
+            $application = DB::transaction(function () use ($applicant, $job, $source, $request, $storage, &$copied) {
                 $application = Application::create([
                     'job_posting_id' => $job->id,
                     'applicant_id' => $applicant->id,
@@ -60,13 +61,17 @@ class ApplicantController extends Controller
                 ]);
 
                 // Files are copied last; on failure the copier removes what it wrote and the rows roll back.
-                $storage->copyCurrent($source, $application);
+                $copied = $storage->copyCurrent($source, $application)->pluck('path')->all();
 
                 return $application;
             });
         } catch (UniqueConstraintViolationException) {
+            $storage->delete($copied);
+
             return $fail('already_applied');
         } catch (Throwable $e) {
+            // e.g. the commit failed after the files were copied.
+            $storage->delete($copied);
             report($e);
 
             return $fail('copy_failed');

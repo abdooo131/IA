@@ -223,7 +223,11 @@ function init(form) {
             // this request, so reloading the URL would lose it.
             if (xhr.responseText && xhr.responseURL) {
                 const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
-                history.replaceState(null, '', xhr.responseURL);
+                // Only follow a redirect (thanks page, or the job page with errors). A non redirected
+                // error response (e.g. 419/500) keeps the job page URL instead of the POST address.
+                if (xhr.responseURL !== new URL(form.action, location.href).href) {
+                    history.replaceState(null, '', xhr.responseURL);
+                }
                 document.title = doc.title;
                 document.documentElement.lang = doc.documentElement.lang;
                 document.documentElement.dir = doc.documentElement.dir;

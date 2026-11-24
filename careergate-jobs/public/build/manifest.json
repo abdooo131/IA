@@ -6,7 +6,7 @@
     "isDynamicEntry": true
   },
   "node_modules/heic2any/dist/heic2any.js": {
-    "file": "assets/heic2any-ClPeb5RT.js",
+    "file": "assets/heic2any-BNgTnCtK.js",
     "name": "heic2any",
     "src": "node_modules/heic2any/dist/heic2any.js",
     "isDynamicEntry": true,
@@ -30,7 +30,7 @@
     "isDynamicEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-D-FQbCIf.js",
+    "file": "assets/app-DbO0R3lm.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -40,7 +40,7 @@
     ]
   },
   "resources/js/cv-upload.js": {
-    "file": "assets/cv-upload-CwZc4oZp.js",
+    "file": "assets/cv-upload-DFWgT_3X.js",
     "name": "cv-upload",
     "src": "resources/js/cv-upload.js",
     "isDynamicEntry": true,

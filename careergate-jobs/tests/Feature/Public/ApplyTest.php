@@ -259,6 +259,23 @@ class ApplyTest extends TestCase
         $this->assertEmpty(Storage::disk('local')->allFiles());
     }
 
+    public function test_applicants_phone_race_is_retried_once_and_then_succeeds(): void
+    {
+        Storage::fake('local');
+        $job = JobPosting::factory()->open()->create();
+        $calls = 0;
+        Application::creating(function () use (&$calls) {
+            if ($calls++ === 0) {
+                throw new \Illuminate\Database\UniqueConstraintViolationException(
+                    'mysql', 'insert into `applicants`', [], new \PDOException("Duplicate entry '+201012345678' for key 'applicants_phone_unique'"));
+            }
+        });
+        $this->post("/jobs/{$job->slug}/apply", $this->payload())->assertRedirect("/jobs/{$job->slug}/thanks");
+        $this->assertSame(1, Application::count());
+        $this->assertSame(2, $calls);
+        $this->assertCount(1, Storage::disk('local')->allFiles());
+    }
+
     public function test_applications_unique_violation_is_reported_as_already_applied(): void
     {
         Storage::fake('local');
@@ -304,5 +321,70 @@ class ApplyTest extends TestCase
         $this->assertCount(1, $app->fresh()->cvFiles);
         $this->assertSame(2, $app->allCvFiles()->count());
         $this->assertSame($user->id, CvFile::whereNotNull('replaced_at')->sole()->replaced_by);
+    }
+
+    public function test_expired_session_on_apply_returns_to_the_job_page_with_input_and_message(): void
+    {
+        // The CSRF middleware is skipped when the app runs under the "testing" env; make it real.
+        $this->app['env'] = 'local';
+        Storage::fake('local');
+        $job = JobPosting::factory()->open()->create();
+
+        foreach (['en' => ["/jobs/{$job->slug}", 'Your session expired'], 'ar' => ["/ar/jobs/{$job->slug}", 'انتهت جلستك']] as $lang => [$page, $text]) {
+            $apply = $lang === 'ar' ? "/ar/jobs/{$job->slug}/apply" : "/jobs/{$job->slug}/apply";
+            $response = $this->post($apply, $this->payload(['_token' => 'wrong', 'cg_hp_field' => 'bot']));
+            $response->assertRedirect($page.'#apply');
+            // The typed fields come back; the CV files and the honeypot do not.
+            $this->get($page)->assertOk()->assertSee($text)->assertSee('value="Ahmed Ali"', false)
+                ->assertSee('value="01012345678"', false)->assertDontSee('value="bot"', false);
+        }
+        $this->assertSame(0, Application::count());
+    }
+
+    /** A JPEG with an APP1/Exif segment carrying an orientation tag and a GPS marker. */
+    private function jpegWithExif(int $w, int $h, int $orientation): UploadedFile
+    {
+        $im = imagecreatetruecolor($w, $h);
+        ob_start();
+        imagejpeg($im);
+        $jpeg = ob_get_clean();
+        $tiff = "MM\x00\x2A\x00\x00\x00\x08\x00\x01\x01\x12\x00\x03\x00\x00\x00\x01".pack('n', $orientation)."\x00\x00\x00\x00\x00\x00GPSLatitude 30.0444N";
+        $payload = "Exif\x00\x00".$tiff;
+        $app1 = "\xFF\xE1".pack('n', strlen($payload) + 2).$payload;
+        $path = tempnam(sys_get_temp_dir(), 'exif');
+        file_put_contents($path, substr($jpeg, 0, 2).$app1.substr($jpeg, 2));
+
+        return new UploadedFile($path, 'photo.jpg', 'image/jpeg', null, true);
+    }
+
+    public function test_exif_and_gps_are_stripped_from_stored_jpeg_and_orientation_applied(): void
+    {
+        Storage::fake('local');
+        $upload = $this->jpegWithExif(40, 20, 6);
+        $this->assertStringContainsString('GPSLatitude', file_get_contents($upload->getRealPath()));
+
+        $job = JobPosting::factory()->open()->create();
+        $this->post("/jobs/{$job->slug}/apply", $this->payload(['cv' => [$upload]]))->assertRedirect("/jobs/{$job->slug}/thanks");
+
+        $cv = Application::sole()->cvFiles->first();
+        $bytes = Storage::disk('local')->get($cv->path);
+        $this->assertSame("\xFF\xD8", substr($bytes, 0, 2));
+        $this->assertStringNotContainsString('Exif', $bytes);
+        $this->assertStringNotContainsString('GPSLatitude', $bytes);
+        $this->assertStringNotContainsString("\xFF\xE1", $bytes);
+        $this->assertSame(strlen($bytes), $cv->size);
+        // Orientation 6 means "rotate 90 degrees": a 40x20 file is stored upright as 20x40.
+        [$w, $h] = getimagesizefromstring($bytes);
+        $this->assertSame([20, 40], [$w, $h]);
+    }
+
+    public function test_png_is_re_encoded_and_still_a_valid_image(): void
+    {
+        Storage::fake('local');
+        $job = JobPosting::factory()->open()->create();
+        $this->post("/jobs/{$job->slug}/apply", $this->payload(['cv' => [UploadedFile::fake()->image('cv.png', 30, 20)]]))->assertRedirect();
+        $bytes = Storage::disk('local')->get(Application::sole()->cvFiles->first()->path);
+        $this->assertSame([30, 20], array_slice(getimagesizefromstring($bytes), 0, 2));
+        $this->assertSame('image/png', getimagesizefromstring($bytes)['mime']);
     }
 }

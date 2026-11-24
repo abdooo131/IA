@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -48,6 +49,11 @@ class PasswordResetController extends Controller
 
         $status = Password::broker($broker)->reset($data, function (User $user, string $password) {
             $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
+            // A new password signs out every other device: drop stored sessions (database driver).
+            if (config('session.driver') === 'database') {
+                DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))
+                    ->where('user_id', $user->id)->delete();
+            }
             event(new PasswordReset($user));
         });
 

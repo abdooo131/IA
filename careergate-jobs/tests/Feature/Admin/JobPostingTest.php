@@ -35,6 +35,41 @@ class JobPostingTest extends TestCase
             ->assertSessionHasErrors('title_en');
     }
 
+    public function test_arabic_only_job_saves_and_shows_everywhere(): void
+    {
+        $client = ClientCompany::factory()->create();
+        $this->actingAs(User::factory()->recruiter()->create())->post('/admin/jobs', [
+            'client_company_id' => $client->id, 'title_ar' => 'مسؤول مخازن', 'city' => 'Cairo',
+            'employment_type' => 'full_time', 'status' => 'open',
+        ])->assertRedirect();
+
+        $job = JobPosting::sole();
+        $this->assertNull($job->title_en);
+        $this->assertNotSame('', $job->slug);
+
+        $this->get('/admin/jobs')->assertOk()->assertSee('مسؤول مخازن');
+        $this->get("/admin/jobs/{$job->id}")->assertOk()->assertSee('مسؤول مخازن');
+        $this->get('/admin/talent-pool')->assertOk();
+        $this->get('/admin')->assertOk();
+        // Public pages: Arabic, and the English page falls back to the Arabic title.
+        $this->get('/ar/jobs')->assertOk()->assertSee('مسؤول مخازن');
+        $this->get('/jobs')->assertOk()->assertSee('مسؤول مخازن');
+        $this->get("/jobs/{$job->slug}")->assertOk()->assertSee('مسؤول مخازن')
+            ->assertSee('og:title" content="مسؤول مخازن', false);
+        $this->get('/jobs?q='.urlencode('مخازن'))->assertOk()->assertSee('مسؤول مخازن');
+    }
+
+    public function test_arabic_admin_sees_arabic_validation_messages_on_the_job_form(): void
+    {
+        $response = $this->actingAs(User::factory()->recruiter()->create(['locale' => 'ar']))
+            ->post('/admin/jobs', ['client_company_id' => ClientCompany::factory()->create()->id, 'employment_type' => 'bogus', 'status' => 'open', 'city' => 'Cairo']);
+        $response->assertSessionHasErrors(['title_en', 'employment_type']);
+        $errors = session('errors');
+        $this->assertStringContainsString('المسمى الوظيفي (بالإنجليزية)', $errors->first('title_en'));
+        $this->assertStringContainsString('نوع الوظيفة', $errors->first('employment_type'));
+        $this->assertStringNotContainsString('field is required', $errors->first('title_en'));
+    }
+
     public function test_job_with_applications_cannot_be_deleted(): void
     {
         $app = Application::factory()->create();

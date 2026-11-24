@@ -19,6 +19,10 @@ class SecurityHeaders
         // camera=(self): the apply form lets candidates take a photo of their CV.
         $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
 
+        if ($request->isSecure()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
+        }
+
         if ($request->is('admin', 'admin/*')) {
             $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
         }

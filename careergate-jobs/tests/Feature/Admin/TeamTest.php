@@ -184,4 +184,28 @@ class TeamTest extends TestCase
         $this->actingAs($admin)->patch("/admin/team/{$admin->id}", ['role' => 'recruiter'])->assertSessionHasErrors();
         $this->assertTrue($admin->fresh()->isAdmin());
     }
+
+    public function test_password_reset_and_invite_acceptance_sign_out_other_sessions(): void
+    {
+        config(['session.driver' => 'database']);
+        $user = User::factory()->create(['email' => 'amal@example.com', 'remember_token' => 'old-token']);
+        $other = User::factory()->create();
+        foreach ([[$user->id, 's1'], [$user->id, 's2'], [$other->id, 's3']] as [$uid, $id]) {
+            \Illuminate\Support\Facades\DB::table('sessions')->insert(['id' => $id, 'user_id' => $uid, 'payload' => '', 'last_activity' => time()]);
+        }
+
+        $this->post('/admin/reset-password', ['token' => \Illuminate\Support\Facades\Password::createToken($user), 'email' => $user->email,
+            'password' => 'brand-new-pass1', 'password_confirmation' => 'brand-new-pass1'])->assertRedirect('/admin/login');
+
+        $this->assertSame(['s3'], \Illuminate\Support\Facades\DB::table('sessions')->where('id', 's3')->pluck('id')->all());
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('sessions')->where('user_id', $user->id)->count());
+        $this->assertNotSame('old-token', $user->fresh()->remember_token);
+
+        // Invitation acceptance goes through the same path (invite=1).
+        \Illuminate\Support\Facades\DB::table('sessions')->insert(['id' => 's4', 'user_id' => $user->id, 'payload' => '', 'last_activity' => time()]);
+        $this->post('/admin/reset-password', ['token' => \Illuminate\Support\Facades\Password::broker('invites')->createToken($user), 'email' => $user->email, 'invite' => 1,
+            'password' => 'another-new-pass1', 'password_confirmation' => 'another-new-pass1'])->assertRedirect('/admin/login');
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('sessions')->where('user_id', $user->id)->count());
+        $this->assertSame(1, \Illuminate\Support\Facades\DB::table('sessions')->where('id', 's3')->count());
+    }
 }

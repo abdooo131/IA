@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('job_postings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('client_company_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('title_en');
+            $table->string('title_en')->nullable();
             $table->string('title_ar')->nullable();
             $table->string('city')->nullable();
             $table->string('area')->nullable();

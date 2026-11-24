@@ -32,6 +32,25 @@ class ApplyService
             throw new JobClosedException;
         }
 
+        try {
+            return $this->attempt($job, $data, $files);
+        } catch (UniqueConstraintViolationException $e) {
+            // A double submit raced on the applicants.phone unique index (MySQL). The failed
+            // transaction is rolled back; retry once so the second request resolves to
+            // "already applied" (or succeeds for a different job) instead of a 500.
+            if (str_contains($e->getMessage(), 'applicants')) {
+                return $this->attempt($job, $data, $files);
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<int, UploadedFile>  $files
+     */
+    private function attempt(JobPosting $job, array $data, array $files): Application
+    {
         $phone = PhoneNumber::normalize((string) ($data['phone'] ?? ''))
             ?? throw new \InvalidArgumentException('Invalid phone number.');
 

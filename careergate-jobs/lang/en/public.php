@@ -48,6 +48,7 @@ return [
     'footer' => 'Career Gate. All rights reserved.',
     'cv_too_large' => 'The files you selected are too large to upload. Each file must be :mb MB or less. Photos are shrunk automatically, so try a smaller PDF or fewer photos.',
     'too_many_requests' => 'Too many attempts. Please wait a minute and try again.',
+    'session_expired' => 'Your session expired. Please attach your CV again and press Send application.',
     'job_closed_notice' => 'Sorry, this job closed before your application was sent.',
     'apply' => [
         'intro' => 'Fill in your details and attach your CV. It takes about two minutes.',

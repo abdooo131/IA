@@ -92,6 +92,8 @@ APP_NAME="Career Gate"
 APP_ENV=production
 APP_DEBUG=false
 LOG_LEVEL=error
+LOG_STACK=daily
+LOG_DAILY_DAYS=14
 SESSION_SECURE_COOKIE=true
 APP_URL=https://yourdomain.com
 APP_TIMEZONE=Africa/Cairo
@@ -135,7 +137,7 @@ What the important ones mean:
 | Setting | Why it matters |
 | --- | --- |
 | `APP_ENV=production`, `APP_DEBUG=false` | Hides technical error details from visitors. **Never** set `APP_DEBUG=true` on the live site. |
-| `LOG_LEVEL=error`, `SESSION_SECURE_COOKIE=true` | Keeps the log small and makes login cookies travel only over https (turn SSL on first, step 9). |
+| `LOG_LEVEL=error`, `LOG_STACK=daily`, `LOG_DAILY_DAYS=14`, `SESSION_SECURE_COOKIE=true` | Keeps the log small, starts a new log file each day and deletes log files after 14 days (logs can contain personal data), and makes login cookies travel only over https (turn SSL on first, step 9). |
 | `APP_URL` | The exact address of the site, with `https://`. Used in email links. |
 | `QUEUE_CONNECTION=database`, `DB_QUEUE_RETRY_AFTER=360` | Shortlist exports run in the background, started by the cron job in step 10. |
 | `MAIL_*` | Without working email, invitations and password resets do not arrive. |
@@ -257,7 +259,7 @@ scp -P 65002 "u123456789@YOUR_SERVER_IP:careergate-jobs/storage/app/private/back
 
 **Please download a backup to your own computer or cloud drive at least once a week.** The automatic backups live on the same server as the site, so they do not help if the hosting account itself is lost.
 
-> **Privacy notice.** Backups contain applicant personal data (names, phones, notes). Keep downloaded copies somewhere private. Backups are kept 14 days, so an applicant who is deleted (by hand or by the 2 year retention rule) **disappears from the backups within 14 days** as the older files are removed. CV files are not in these backups; they stay in `storage/app/private` on the server only.
+> **Privacy notice.** Backups contain applicant personal data (names, phones, notes). Keep downloaded copies somewhere private. Backups are kept 14 days, so an applicant who is deleted (by hand or by the 2 year retention rule) **disappears from the backups within 14 days** as the older files are removed. CV files are not in these backups; they stay in `storage/app/private` on the server only. Shortlist exports (ZIP files with applicant details and CV copies) are removed when an applicant is deleted, and otherwise expire by themselves after 30 days; the team can simply generate them again.
 
 ## 12. First login checklist
 

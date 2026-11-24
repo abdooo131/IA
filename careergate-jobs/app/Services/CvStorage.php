@@ -43,7 +43,15 @@ class CvStorage
                     throw new \InvalidArgumentException("Unsupported CV type: {$mime}");
                 }
 
-                $path = $disk->putFileAs("cvs/{$app->id}", $file, Str::uuid()->toString().'.'.$ext);
+                $name = Str::uuid()->toString().'.'.$ext;
+                // Photos are re-encoded so EXIF/GPS metadata never reaches the disk (or the client ZIP).
+                $clean = $this->withoutMetadata($file, $mime);
+                if ($clean !== null) {
+                    $path = "cvs/{$app->id}/{$name}";
+                    $path = $disk->put($path, $clean) ? $path : false;
+                } else {
+                    $path = $disk->putFileAs("cvs/{$app->id}", $file, $name);
+                }
                 if ($path === false) {
                     throw new \RuntimeException('Could not write CV file.');
                 }
@@ -53,7 +61,7 @@ class CvStorage
                     'original_name' => Str::limit(basename(str_replace('\\', '/', (string) $file->getClientOriginalName())), 250, ''),
                     'path' => $path,
                     'mime' => $mime,
-                    'size' => (int) $file->getSize(),
+                    'size' => $clean !== null ? strlen($clean) : (int) $file->getSize(),
                     'position' => $position,
                 ]));
             }
@@ -63,6 +71,71 @@ class CvStorage
         }
 
         return $rows;
+    }
+
+    /**
+     * Re-encode a JPEG or PNG with GD, which drops every metadata block (EXIF, GPS, XMP).
+     * JPEGs are rotated upright first so the EXIF orientation is not lost. Returns null for
+     * PDFs, and for images GD cannot decode or that are too large to decode safely (the
+     * original is then stored unchanged).
+     */
+    private function withoutMetadata(UploadedFile $file, string $mime): ?string
+    {
+        if (! in_array($mime, ['image/jpeg', 'image/png'], true) || ! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        $path = (string) $file->getRealPath();
+        $info = @getimagesize($path);
+        if ($info === false || $info[0] * $info[1] > 30_000_000) {
+            return null;
+        }
+
+        $image = $mime === 'image/jpeg' ? @imagecreatefromjpeg($path) : @imagecreatefrompng($path);
+        if ($image === false) {
+            return null;
+        }
+
+        try {
+            if ($mime === 'image/jpeg') {
+                $image = $this->orient($image, $path);
+                ob_start();
+                $ok = imagejpeg($image, null, 88);
+            } else {
+                imagealphablending($image, false);
+                imagesavealpha($image, true);
+                ob_start();
+                $ok = imagepng($image, null, 6);
+            }
+            $data = (string) ob_get_clean();
+
+            return $ok && $data !== '' ? $data : null;
+        } finally {
+            unset($image);
+        }
+    }
+
+    /** Apply the EXIF orientation (if any) to a decoded JPEG. */
+    private function orient(\GdImage $image, string $path): \GdImage
+    {
+        $orientation = 1;
+        if (function_exists('exif_read_data')) {
+            $exif = @exif_read_data($path);
+            $orientation = (int) ($exif['Orientation'] ?? 1);
+        }
+
+        // Mirrored variants are rare; only the plain flips and rotations are applied.
+        if ($orientation === 2 || $orientation === 4) {
+            imageflip($image, $orientation === 4 ? IMG_FLIP_VERTICAL : IMG_FLIP_HORIZONTAL);
+        }
+        $angle = match ($orientation) {
+            3 => 180,
+            6 => -90,
+            8 => 90,
+            default => 0,
+        };
+
+        return $angle !== 0 ? (imagerotate($image, $angle, 0) ?: $image) : $image;
     }
 
     /**
