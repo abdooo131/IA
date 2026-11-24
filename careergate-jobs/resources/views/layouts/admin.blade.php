@@ -14,15 +14,74 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-gray-50 text-cg-navy antialiased">
-    <header class="bg-cg-navy">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-            <img src="{{ asset('brand/careergate-logo-for-dark-bg.png') }}" alt="Career Gate" class="h-10 w-auto">
-            @yield('header-actions')
-        </div>
-    </header>
+@auth
+    @php
+        $nav = [
+            ['admin.dashboard', 'admin/', 'dashboard', url('/admin')],
+            ['admin.jobs.index', 'admin/jobs*', 'jobs', url('/admin/jobs')],
+            ['admin.talent.index', 'admin/talent*', 'talent', url('/admin/talent')],
+            ['admin.clients.index', 'admin/clients*', 'clients', url('/admin/clients')],
+        ];
+        if (auth()->user()->isAdmin()) {
+            $nav[] = ['admin.team.index', 'admin/team*', 'team', route('admin.team.index')];
+        }
+    @endphp
+    <div class="md:flex md:min-h-screen">
+        <aside class="bg-cg-navy text-white md:w-64 md:shrink-0">
+            <div class="flex items-center justify-between px-4 py-3 md:block md:py-6">
+                <a href="{{ route('admin.dashboard') }}">
+                    <img src="{{ asset('brand/careergate-logo-for-dark-bg.png') }}" alt="Career Gate" class="h-10 w-auto">
+                </a>
+                <button type="button" class="rounded px-3 py-2 text-sm md:hidden" aria-label="{{ __('admin.nav.menu') }}"
+                        onclick="document.getElementById('admin-nav').classList.toggle('hidden')">&#9776;</button>
+            </div>
+            <nav id="admin-nav" class="hidden px-2 pb-4 md:block">
+                <ul class="space-y-1">
+                    @foreach ($nav as [$name, $pattern, $key, $href])
+                        <li>
+                            <a href="{{ $href }}"
+                               class="block rounded px-3 py-2 text-sm font-medium {{ request()->is(rtrim($pattern, '/') ?: '/') ? 'bg-cg-yellow text-cg-navy' : 'text-white hover:bg-cg-navy-light' }}">
+                                {{ __('admin.nav.'.$key) }}
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
 
-    <main class="mx-auto max-w-7xl px-4 py-8">
-        @yield('content')
-    </main>
+                <div class="mt-6 border-t border-cg-navy-light px-3 pt-4 text-sm">
+                    <p class="truncate font-semibold">{{ auth()->user()->name }}</p>
+                    <form method="POST" action="{{ route('admin.language.update') }}" class="mt-3 flex items-center gap-2">
+                        @csrf
+                        <span class="text-gray-300">{{ __('admin.nav.language') }}</span>
+                        <button name="locale" value="en" class="rounded px-2 py-1 {{ app()->getLocale() === 'en' ? 'bg-cg-yellow text-cg-navy' : 'bg-cg-navy-light' }}">EN</button>
+                        <button name="locale" value="ar" class="rounded px-2 py-1 {{ app()->getLocale() === 'ar' ? 'bg-cg-yellow text-cg-navy' : 'bg-cg-navy-light' }}">عربي</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.logout') }}" class="mt-3">
+                        @csrf
+                        <button class="text-gray-300 underline hover:text-white">{{ __('admin.nav.logout') }}</button>
+                    </form>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="min-w-0 flex-1 px-4 py-8 md:px-8">
+            @if (session('status'))
+                <div class="mb-6 rounded border border-cg-yellow bg-cg-yellow-light px-4 py-3 text-sm" role="status">{{ session('status') }}</div>
+            @endif
+            @yield('content')
+        </main>
+    </div>
+@else
+    <div class="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+        <div class="w-full max-w-md">
+            <img src="{{ asset('brand/careergate-logo-for-light-bg.png') }}" alt="Career Gate" class="mx-auto mb-8 h-12 w-auto">
+            <div class="rounded-lg bg-white p-6 shadow">
+                @if (session('status'))
+                    <div class="mb-4 rounded border border-cg-yellow bg-cg-yellow-light px-4 py-3 text-sm" role="status">{{ session('status') }}</div>
+                @endif
+                @yield('content')
+            </div>
+        </div>
+    </div>
+@endauth
 </body>
 </html>

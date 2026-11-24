@@ -12,3 +12,5 @@ Route::middleware('public.locale')->group(function () {
         Route::view('/jobs', 'public.jobs.index')->name('jobs.index');
     });
 });
+
+require __DIR__.'/admin.php';

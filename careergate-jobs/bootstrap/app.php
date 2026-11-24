@@ -14,7 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'public.locale' => \App\Http\Middleware\SetPublicLocale::class,
+            'admin.locale' => \App\Http\Middleware\SetAdminLocale::class,
+            'active' => \App\Http\Middleware\EnsureActiveUser::class,
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
         ]);
+        $middleware->redirectGuestsTo(fn () => route('admin.login'));
+        $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
