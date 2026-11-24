@@ -23,7 +23,7 @@ class ApplyRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Honeypot: bots fill the hidden field. Pretend success and store nothing.
-        if (filled($this->input('website'))) {
+        if (filled($this->input('cg_hp_field'))) {
             $job = $this->route('jobPosting');
             throw new HttpResponseException(
                 redirect(LocalizedRoute::url('jobs.thanks', [$job]))->with('applied', true)

@@ -32,7 +32,7 @@ async function shrink(file) {
     const out = await imageCompression(file, {
         maxSizeMB: MAX_IMAGE_MB,
         maxWidthOrHeight: MAX_DIMENSION,
-        useWebWorker: true,
+        useWebWorker: false, // the worker script would be fetched from a third party CDN
         fileType: file.type === 'image/png' ? 'image/png' : 'image/jpeg',
     });
     // Keep the original name; the library may return a Blob-like File with another name.
@@ -169,25 +169,80 @@ function init(form) {
         addFiles(picked);
     });
 
+    // Upload progress: a single bar for the whole request (one request carries all files).
+    const progress = document.createElement('div');
+    progress.className = 'mt-2 hidden';
+    progress.innerHTML = '<progress max="100" value="0" class="h-3 w-full"></progress><p class="mt-1 text-sm" data-cv-percent></p>';
+    list.after(progress);
+    const bar = progress.querySelector('progress');
+    const percent = progress.querySelector('[data-cv-percent]');
+
+    const unlock = () => {
+        submitted = false;
+        submit.textContent = submitLabel;
+        progress.classList.add('hidden');
+        render();
+    };
+
     form.addEventListener('submit', (event) => {
-        if (busy > 0) {
+        if (busy > 0 || submitted) {
             event.preventDefault();
             return;
         }
         if (files.length === 0) {
-            // Let the user see why: nothing is attached.
             event.preventDefault();
             showError(d.msgRequired || '');
             buttons.scrollIntoView({ block: 'center' });
             return;
         }
-        if (submitted) {
-            event.preventDefault();
-            return;
-        }
         submitted = true;
         submit.disabled = true;
         submit.textContent = d.msgUploading || 'Uploading...';
+
+        // Without XHR/FormData support fall back to the plain form post.
+        if (!window.XMLHttpRequest || !window.FormData) return;
+
+        event.preventDefault();
+        showError('');
+        progress.classList.remove('hidden');
+        bar.value = 0;
+        percent.textContent = '0%';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', form.action);
+        xhr.setRequestHeader('Accept', 'text/html');
+        xhr.upload.addEventListener('progress', (e) => {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            bar.value = pct;
+            percent.textContent = pct + '%';
+        });
+        xhr.addEventListener('load', () => {
+            // The browser already followed the server redirect (thanks page, or the job page
+            // with errors and old input). Show that page; the flash data was consumed by
+            // this request, so reloading the URL would lose it.
+            if (xhr.responseText && xhr.responseURL) {
+                const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
+                history.replaceState(null, '', xhr.responseURL);
+                document.title = doc.title;
+                document.documentElement.lang = doc.documentElement.lang;
+                document.documentElement.dir = doc.documentElement.dir;
+                // Scripts inserted through innerHTML do not run; re-enhance the new form ourselves.
+                document.body.innerHTML = doc.body.innerHTML;
+                window.scrollTo(0, 0);
+                initAll();
+            } else {
+                unlock();
+                showError(d.msgUploadFailed || '');
+            }
+        });
+        const fail = () => {
+            unlock();
+            showError(d.msgUploadFailed || '');
+        };
+        xhr.addEventListener('error', fail);
+        xhr.addEventListener('timeout', fail);
+        xhr.send(new FormData(form));
     });
 
     // Page restored from the back/forward cache after a submit: allow another try.
@@ -200,4 +255,8 @@ function init(form) {
     });
 }
 
-document.querySelectorAll('[data-apply-form]').forEach(init);
+function initAll() {
+    document.querySelectorAll('[data-apply-form]').forEach(init);
+}
+
+initAll();

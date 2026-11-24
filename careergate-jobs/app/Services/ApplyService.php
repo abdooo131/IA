@@ -74,9 +74,14 @@ class ApplyService
 
                 return $application;
             });
-        } catch (UniqueConstraintViolationException) {
+        } catch (UniqueConstraintViolationException $e) {
             $this->cvs->delete($storedPaths);
-            throw new AlreadyAppliedException;
+            // Only the applications (job, applicant) index means "already applied"; any other
+            // unique violation (e.g. the applicants.phone race) must not be misreported.
+            if (str_contains($e->getMessage(), 'applications')) {
+                throw new AlreadyAppliedException;
+            }
+            throw $e;
         } catch (Throwable $e) {
             $this->cvs->delete($storedPaths);
             throw $e;

@@ -7,6 +7,7 @@ use App\Models\CvFile;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -72,14 +73,25 @@ class CvStorage
      */
     public function replace(Application $app, array $files, User $by): Collection
     {
-        $new = $this->store($app, $files);
+        $newPaths = [];
 
-        $app->allCvFiles()
-            ->whereNull('replaced_at')
-            ->whereNotIn('id', $new->pluck('id'))
-            ->update(['replaced_at' => now(), 'replaced_by' => $by->id]);
+        try {
+            return DB::transaction(function () use ($app, $files, $by, &$newPaths) {
+                $new = $this->store($app, $files);
+                $newPaths = $new->pluck('path')->all();
 
-        return $new;
+                $app->allCvFiles()
+                    ->whereNull('replaced_at')
+                    ->whereNotIn('id', $new->pluck('id'))
+                    ->get()
+                    ->each(fn (CvFile $old) => $old->update(['replaced_at' => now(), 'replaced_by' => $by->id]));
+
+                return $new;
+            });
+        } catch (Throwable $e) {
+            $this->delete($newPaths);
+            throw $e;
+        }
     }
 
     /** @param  iterable<int, string>  $paths */

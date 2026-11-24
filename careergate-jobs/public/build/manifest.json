@@ -6,7 +6,7 @@
     "isDynamicEntry": true
   },
   "node_modules/heic2any/dist/heic2any.js": {
-    "file": "assets/heic2any-DOeLxT0b.js",
+    "file": "assets/heic2any-gZ-EvThj.js",
     "name": "heic2any",
     "src": "node_modules/heic2any/dist/heic2any.js",
     "isDynamicEntry": true,
@@ -15,7 +15,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-CEKp0db3.css",
+    "file": "assets/app-DfmRRltH.css",
     "name": "app",
     "names": [
       "app.css"
@@ -24,7 +24,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BmRF8yMY.js",
+    "file": "assets/app-CrxQfz-A.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -33,7 +33,7 @@
     ]
   },
   "resources/js/cv-upload.js": {
-    "file": "assets/cv-upload-HzkXcyCU.js",
+    "file": "assets/cv-upload-RR92x38p.js",
     "name": "cv-upload",
     "src": "resources/js/cv-upload.js",
     "isDynamicEntry": true,

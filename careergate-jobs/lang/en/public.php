@@ -84,6 +84,7 @@ return [
         'js_too_large' => 'This file is larger than 10 MB.',
         'js_type' => 'Only PDF, JPG, PNG or HEIC files are accepted.',
         'js_failed' => 'We could not prepare this file. Please choose another.',
+        'js_upload_failed' => 'The upload failed. Check your connection and try again.',
         'js_one_pdf' => 'Only one PDF can be attached.',
     ],
     'thanks' => [

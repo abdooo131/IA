@@ -153,7 +153,7 @@ class ApplyTest extends TestCase
     {
         Storage::fake('local');
         $job = JobPosting::factory()->open()->create();
-        $this->post("/jobs/{$job->slug}/apply", $this->payload(['website' => 'http://spam']))->assertRedirect("/jobs/{$job->slug}/thanks");
+        $this->post("/jobs/{$job->slug}/apply", $this->payload(['cg_hp_field' => 'spam']))->assertRedirect("/jobs/{$job->slug}/thanks");
         $this->assertSame(0, Application::count());
         $this->assertEmpty(Storage::disk('local')->allFiles());
     }
@@ -238,5 +238,71 @@ class ApplyTest extends TestCase
         }
         $this->assertSame(0, Application::count());
         $this->assertEmpty(Storage::disk('local')->allFiles());
+    }
+
+    public function test_applicants_phone_unique_violation_is_not_reported_as_already_applied(): void
+    {
+        // The applicants.phone race is resolved by Applicant::firstOrCreate (re-reads the row);
+        // if some other unique violation still escapes it must not be shown as "already applied".
+        // (A real two-connection race cannot be reproduced on single-connection SQLite.)
+        Storage::fake('local');
+        $job = JobPosting::factory()->open()->create();
+        Application::creating(fn () => throw new \Illuminate\Database\UniqueConstraintViolationException(
+            'sqlite', 'insert into "applicants"', [], new \PDOException('UNIQUE constraint failed: applicants.phone')));
+        try {
+            $this->withoutExceptionHandling()->post("/jobs/{$job->slug}/apply", $this->payload());
+            $this->fail('expected exception');
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            $this->assertTrue(true);
+        }
+        $this->assertSame(0, Application::count());
+        $this->assertEmpty(Storage::disk('local')->allFiles());
+    }
+
+    public function test_applications_unique_violation_is_reported_as_already_applied(): void
+    {
+        Storage::fake('local');
+        $job = JobPosting::factory()->open()->create();
+        Application::creating(fn () => throw new \Illuminate\Database\UniqueConstraintViolationException(
+            'sqlite', 'insert into "applications"', [], new \PDOException('UNIQUE constraint failed: applications.job_posting_id, applications.applicant_id')));
+        $this->post("/jobs/{$job->slug}/apply", $this->payload())->assertSessionHas('already_applied', true);
+        $this->assertSame(0, Application::count());
+    }
+
+    public function test_replace_cv_is_atomic_and_cleans_new_files_on_failure(): void
+    {
+        Storage::fake('local');
+        $app = Application::factory()->create();
+        $storage = app(\App\Services\CvStorage::class);
+        $old = $storage->store($app, [UploadedFile::fake()->create('old.pdf', 10, 'application/pdf')]);
+        $user = \App\Models\User::factory()->create();
+
+        CvFile::updating(fn () => throw new \RuntimeException('boom'));
+        try {
+            $storage->replace($app, [UploadedFile::fake()->image('new.jpg')], $user);
+            $this->fail('expected exception');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('boom', $e->getMessage());
+        }
+
+        $this->assertSame(1, CvFile::count());
+        $this->assertNull(CvFile::sole()->replaced_at);
+        $this->assertSame([$old->first()->path], Storage::disk('local')->allFiles());
+    }
+
+    public function test_replace_cv_marks_old_files_and_stores_new(): void
+    {
+        Storage::fake('local');
+        $app = Application::factory()->create();
+        $storage = app(\App\Services\CvStorage::class);
+        $storage->store($app, [UploadedFile::fake()->create('old.pdf', 10, 'application/pdf')]);
+        $user = \App\Models\User::factory()->create();
+
+        $new = $storage->replace($app, [UploadedFile::fake()->image('new.jpg')], $user);
+
+        $this->assertCount(1, $new);
+        $this->assertCount(1, $app->fresh()->cvFiles);
+        $this->assertSame(2, $app->allCvFiles()->count());
+        $this->assertSame($user->id, CvFile::whereNotNull('replaced_at')->sole()->replaced_by);
     }
 }

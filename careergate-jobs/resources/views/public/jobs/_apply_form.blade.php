@@ -20,6 +20,7 @@
       data-msg-type="{{ __('public.apply.js_type') }}"
       data-msg-failed="{{ __('public.apply.js_failed') }}"
       data-msg-required="{{ __('public.apply.cv_required') }}"
+      data-msg-upload-failed="{{ __('public.apply.js_upload_failed') }}"
       data-msg-one-pdf="{{ __('public.apply.js_one_pdf') }}"
       data-max-kb="{{ config('careergate.cv.max_kb') }}" data-max-images="{{ config('careergate.cv.max_images') }}">
     @csrf
@@ -39,7 +40,7 @@
 
     {{-- Honeypot: hidden from people, bots tend to fill it. --}}
     <div class="sr-only" aria-hidden="true">
-        <label>Website <input type="text" name="website" value="" tabindex="-1" autocomplete="off"></label>
+        <input type="text" name="cg_hp_field" value="" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore="true">
     </div>
 
     <div>
