@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ApplicantController;
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\ApplicationStageController;
 use App\Http\Controllers\Admin\ClientCompanyController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CommentController;
 use App\Http\Controllers\Admin\CvFileController;
 use App\Http\Controllers\Admin\ExportController;
@@ -28,7 +29,7 @@ Route::prefix('admin')->group(function () {
 
     Route::middleware(['auth', 'active', 'admin.locale'])->as('admin.')->group(function () {
         Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
-        Route::view('/', 'admin.dashboard')->name('dashboard');
+        Route::get('/', DashboardController::class)->name('dashboard');
         Route::post('language', [LanguageController::class, 'update'])->name('language.update');
 
         Route::resource('clients', ClientCompanyController::class)->except(['show', 'destroy'])->parameters(['clients' => 'client']);

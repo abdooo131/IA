@@ -45,6 +45,18 @@ return [
     'dashboard' => [
         'title' => 'Dashboard',
         'welcome' => 'Welcome, :name.',
+        'open_jobs' => 'Open jobs',
+        'applications_7d' => 'Applications in the last 7 days',
+        'shortlisted_now' => 'Currently shortlisted',
+        'open_jobs_table' => 'Open jobs',
+        'total' => 'Total',
+        'newest' => 'Newest applications',
+        'applicant' => 'Applicant',
+        'job' => 'Job',
+        'applied' => 'Applied',
+        'no_open_jobs' => 'There are no open jobs yet.',
+        'no_applications' => 'No applications yet.',
+        'post_job' => 'Post a job',
     ],
     'team' => [
         'title' => 'Team',
