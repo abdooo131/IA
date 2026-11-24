@@ -11,7 +11,7 @@
 @endpush
 
 @section('content')
-    <img src="{{ asset('brand/facebook-cover-1920x640.png') }}" alt="{{ __('public.brand') }}"
+    <img src="{{ asset('brand/careergate-hero-1200.jpg') }}" alt="{{ __('public.brand') }}" width="1200" height="400" fetchpriority="high" decoding="async"
          class="mb-6 aspect-[3/1] w-full rounded-lg object-cover">
 
     <h1 class="text-2xl font-bold sm:text-3xl">{{ __('public.jobs.title') }}</h1>
