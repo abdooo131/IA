@@ -63,6 +63,7 @@ Route::prefix('admin')->group(function () {
             Route::delete('applicants/{applicant}', [ApplicantController::class, 'destroy'])->name('applicants.destroy');
             Route::get('team', [TeamController::class, 'index'])->name('team.index');
             Route::post('team', [TeamController::class, 'store'])->name('team.store');
+            Route::post('team/{user}/invite', [TeamController::class, 'invite'])->name('team.invite');
             Route::patch('team/{user}', [TeamController::class, 'update'])->name('team.update');
         });
     });

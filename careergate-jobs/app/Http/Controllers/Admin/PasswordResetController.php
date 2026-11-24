@@ -30,7 +30,7 @@ class PasswordResetController extends Controller
 
     public function reset(Request $request, string $token)
     {
-        return view('admin.auth.reset-password', ['token' => $token, 'email' => $request->query('email')]);
+        return view('admin.auth.reset-password', ['token' => $token, 'email' => $request->query('email'), 'invite' => $request->boolean('invite')]);
     }
 
     public function update(Request $request): RedirectResponse
@@ -38,10 +38,15 @@ class PasswordResetController extends Controller
         $data = $request->validate([
             'token' => ['required'],
             'email' => ['required', 'email'],
+            'invite' => ['sometimes', 'boolean'],
             'password' => ['required', 'confirmed', PasswordRule::min(10)],
         ]);
 
-        $status = Password::reset($data, function (User $user, string $password) {
+        // Invitation links (invite=1) use the 7 day broker; ordinary resets keep 60 minutes.
+        $broker = $request->boolean('invite') ? 'invites' : null;
+        unset($data['invite']);
+
+        $status = Password::broker($broker)->reset($data, function (User $user, string $password) {
             $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
             event(new PasswordReset($user));
         });

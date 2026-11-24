@@ -5,6 +5,7 @@
     <form method="POST" action="{{ route('password.update') }}">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
+        @if ($invite ?? false)<input type="hidden" name="invite" value="1">@endif
         <x-admin.auth._field name="email" type="email" :label="__('admin.common.email')" :value="$email" autocomplete="username" />
         <x-admin.auth._field name="password" type="password" :label="__('admin.passwords.new_password')" autocomplete="new-password" />
         <x-admin.auth._field name="password_confirmation" type="password" :label="__('admin.passwords.confirm')" autocomplete="new-password" />

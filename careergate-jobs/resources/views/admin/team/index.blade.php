@@ -39,6 +39,9 @@
                     </td>
                     <td class="px-4 py-3 text-end">
                         <button form="member-{{ $m->id }}" class="rounded bg-cg-navy px-3 py-1 text-white hover:bg-cg-navy-light">{{ __('admin.common.save') }}</button>
+                        @unless ($self)
+                            <button form="invite-{{ $m->id }}" class="ms-1 rounded border border-cg-navy px-3 py-1 text-cg-navy hover:bg-cg-yellow-light" title="{{ __('admin.team.resend_hint') }}">{{ __('admin.team.resend') }}</button>
+                        @endunless
                     </td>
                 </tr>
             @endforeach
@@ -47,6 +50,7 @@
     </div>
     @foreach ($members as $m)
         <form method="POST" action="{{ route('admin.team.update', $m) }}" id="member-{{ $m->id }}" class="hidden">@csrf @method('PATCH')</form>
+        <form method="POST" action="{{ route('admin.team.invite', $m) }}" id="invite-{{ $m->id }}" class="hidden">@csrf</form>
     @endforeach
     @error('is_active')<p class="mt-3 text-sm text-red-700">{{ $message }}</p>@enderror
     @error('role')<p class="mt-3 text-sm text-red-700">{{ $message }}</p>@enderror

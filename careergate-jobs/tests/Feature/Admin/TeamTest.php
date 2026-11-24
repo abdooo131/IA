@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\User;
+use App\Notifications\TeamInvitation;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +20,92 @@ class TeamTest extends TestCase
             ->post('/admin/team', ['name' => 'Sara', 'email' => 'sara@example.com', 'role' => 'recruiter'])
             ->assertRedirect();
         $this->assertDatabaseHas('users', ['email' => 'sara@example.com', 'role' => 'recruiter', 'is_active' => true]);
-        Notification::assertSentTo(User::where('email', 'sara@example.com')->first(), ResetPassword::class);
+        Notification::assertSentTo(User::where('email', 'sara@example.com')->first(), TeamInvitation::class);
+        Notification::assertNotSentTo(User::where('email', 'sara@example.com')->first(), ResetPassword::class);
+    }
+
+    public function test_invitation_email_is_bilingual_and_link_valid_for_seven_days(): void
+    {
+        Notification::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post('/admin/team', ['name' => 'Sara', 'email' => 'sara@example.com', 'role' => 'recruiter']);
+        $sara = User::where('email', 'sara@example.com')->first();
+        Notification::assertSentTo($sara, TeamInvitation::class, function (TeamInvitation $n) use ($sara) {
+            $mail = $n->toMail($sara);
+            $text = $mail->subject.' '.implode(' ', array_map('strval', $mail->introLines)).' '.implode(' ', array_map('strval', $mail->outroLines));
+            $this->assertStringContainsString('invited to the Career Gate back office', $text);
+            $this->assertStringContainsString('7 days', $text);
+            $this->assertStringContainsString('تمت دعوتك', $text);
+            $this->assertStringContainsString('7 أيام', $text);
+            $this->assertStringContainsString('/admin/reset-password/'.$n->token, $mail->actionUrl);
+            $this->assertStringContainsString('invite=1', $mail->actionUrl);
+            $this->assertStringContainsString(rawurlencode('sara@example.com'), $mail->actionUrl);
+
+            return true;
+        });
+        $this->assertSame(10080, config('auth.passwords.invites.expire'));
+        $this->assertSame(config('auth.passwords.users.table'), config('auth.passwords.invites.table'));
+    }
+
+    public function test_invited_member_can_set_password_after_two_hours_but_normal_reset_links_still_expire(): void
+    {
+        Notification::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post('/admin/team', ['name' => 'Sara', 'email' => 'sara@example.com', 'role' => 'recruiter']);
+        $sara = User::where('email', 'sara@example.com')->first();
+        $token = null;
+        Notification::assertSentTo($sara, TeamInvitation::class, function ($n) use (&$token) {
+            $token = $n->token;
+
+            return true;
+        });
+        auth()->logout(); // the invited member is a guest
+        $this->travel(2)->hours();
+        $payload = ['token' => $token, 'email' => 'sara@example.com', 'password' => 'brand-new-pass1', 'password_confirmation' => 'brand-new-pass1'];
+        $this->post('/admin/reset-password', $payload)->assertSessionHasErrors('email'); // default 60 minute broker
+        $this->post('/admin/reset-password', $payload + ['invite' => 1])->assertRedirect('/admin/login');
+        $this->post('/admin/login', ['email' => 'sara@example.com', 'password' => 'brand-new-pass1'])->assertRedirect('/admin');
+    }
+
+    public function test_invite_link_expires_after_seven_days(): void
+    {
+        Notification::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post('/admin/team', ['name' => 'Sara', 'email' => 'sara@example.com', 'role' => 'recruiter']);
+        $token = null;
+        Notification::assertSentTo(User::where('email', 'sara@example.com')->first(), TeamInvitation::class, function ($n) use (&$token) {
+            $token = $n->token;
+
+            return true;
+        });
+        auth()->logout();
+        $this->travel(8)->days();
+        $this->post('/admin/reset-password', ['token' => $token, 'email' => 'sara@example.com', 'invite' => 1,
+            'password' => 'brand-new-pass1', 'password_confirmation' => 'brand-new-pass1'])->assertSessionHasErrors('email');
+    }
+
+    public function test_admin_can_resend_an_invite(): void
+    {
+        Notification::fake();
+        $member = User::factory()->recruiter()->create();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post("/admin/team/{$member->id}/invite")->assertRedirect()->assertSessionHas('status');
+        Notification::assertSentTo($member, TeamInvitation::class);
+    }
+
+    public function test_recruiter_cannot_resend_invites(): void
+    {
+        Notification::fake();
+        $member = User::factory()->recruiter()->create();
+        $this->actingAs(User::factory()->recruiter()->create())->post("/admin/team/{$member->id}/invite")->assertForbidden();
+        Notification::assertNothingSent();
+    }
+
+    public function test_team_page_has_resend_button_for_other_members(): void
+    {
+        $member = User::factory()->recruiter()->create();
+        $this->actingAs(User::factory()->admin()->create())->get('/admin/team')
+            ->assertOk()->assertSee("/admin/team/{$member->id}/invite", false);
     }
 
     public function test_invalid_role_is_rejected(): void

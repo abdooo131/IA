@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\TeamInvitation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -28,9 +29,22 @@ class TeamController extends Controller
 
         // The member sets their own password through the reset link we email.
         $user = User::create($data + ['password' => Str::random(40), 'locale' => 'en', 'is_active' => true]);
-        Password::sendResetLink(['email' => $user->email]);
+        $this->sendInvite($user);
 
         return redirect()->route('admin.team.index')->with('status', __('admin.team.added'));
+    }
+
+    public function invite(User $user): RedirectResponse
+    {
+        $this->sendInvite($user);
+
+        return redirect()->route('admin.team.index')->with('status', __('admin.team.invite_resent', ['email' => $user->email]));
+    }
+
+    private function sendInvite(User $user): void
+    {
+        $token = Password::broker('invites')->createToken($user);
+        $user->notify(new TeamInvitation($token));
     }
 
     public function update(Request $request, User $user): RedirectResponse
