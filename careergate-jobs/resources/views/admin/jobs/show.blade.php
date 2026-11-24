@@ -58,7 +58,9 @@
     <section class="mt-6 rounded-lg bg-white p-6 shadow">
         <div class="flex items-center justify-between">
             <h2 class="font-bold">{{ __('admin.jobs.applications_by_stage') }}</h2>
-            <a href="{{ url('/admin/jobs/'.$job->id.'/applications') }}" class="text-sm underline">{{ __('admin.jobs.view_applications') }}</a>
+            @if (\Illuminate\Support\Facades\Route::has('admin.jobs.applications'))
+                <a href="{{ route('admin.jobs.applications', $job) }}" class="text-sm underline">{{ __('admin.jobs.view_applications') }}</a>
+            @endif
         </div>
         <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             @foreach ($stageCounts as $stage => $total)

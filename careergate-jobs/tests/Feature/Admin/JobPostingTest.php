@@ -90,6 +90,16 @@ class JobPostingTest extends TestCase
         ])->assertSessionHasErrors('questions.0.options_en');
     }
 
+    public function test_choice_options_must_match_in_count_across_languages(): void
+    {
+        $this->actingAs(User::factory()->create())->post('/admin/jobs', [
+            'client_company_id' => ClientCompany::factory()->create()->id, 'title_en' => 'T', 'city' => 'Cairo',
+            'employment_type' => 'full_time', 'status' => 'draft',
+            'questions' => [['type' => 'choice', 'label_en' => 'Shift?', 'label_ar' => 'الوردية؟', 'options_en' => ['Morning', 'Night'], 'options_ar' => ['صباحي']]],
+        ])->assertSessionHasErrors('questions.0.options_ar');
+        $this->assertSame(0, JobPosting::count());
+    }
+
     public function test_reopening_expired_job_requires_new_date(): void
     {
         $job = JobPosting::factory()->create(['status' => JobStatus::Closed, 'closes_on' => now('Africa/Cairo')->subDays(3)]);

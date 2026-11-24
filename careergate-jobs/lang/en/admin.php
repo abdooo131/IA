@@ -117,6 +117,7 @@ return [
         'duplicated' => 'Job duplicated as a draft. Review it and publish when ready.',
         'status_updated' => 'Job status updated.',
         'options_required' => 'A choice question needs at least one choice in each language it is written in.',
+        'options_count_mismatch' => 'The English and Arabic choices must have the same number of options, in the same order.',
         'open_needs_future_date' => 'The closing date has passed. Clear it or move it to a future date before opening this job.',
         'has_applications' => 'This job has applications and cannot be deleted. You can close it instead.',
         'public_links' => 'Public links',

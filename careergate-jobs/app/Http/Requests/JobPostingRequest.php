@@ -77,6 +77,11 @@ class JobPostingRequest extends FormRequest
                         $validator->errors()->add("questions.$i.options_$lang", __('admin.jobs.options_required'));
                     }
                 }
+                $en = $this->cleanOptions($q['options_en'] ?? []);
+                $ar = $this->cleanOptions($q['options_ar'] ?? []);
+                if ($en !== [] && $ar !== [] && count($en) !== count($ar)) {
+                    $validator->errors()->add("questions.$i.options_ar", __('admin.jobs.options_count_mismatch'));
+                }
             }
 
             if ($this->input('status') === JobStatus::Open->value && filled($this->input('closes_on'))
