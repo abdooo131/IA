@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ApplicationStageController;
 use App\Http\Controllers\Admin\ClientCompanyController;
 use App\Http\Controllers\Admin\CommentController;
 use App\Http\Controllers\Admin\CvFileController;
+use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\JobPostingController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\LoginController;
@@ -48,6 +49,9 @@ Route::prefix('admin')->group(function () {
         Route::post('applications/{application}/cv', [ApplicationController::class, 'replaceCv'])->name('applications.cv.replace');
         Route::get('cv-files/{cvFile}', [CvFileController::class, 'show'])->name('cv-files.show');
         Route::patch('applications/{application}/stage', [ApplicationStageController::class, 'update'])->name('applications.stage');
+
+        Route::post('jobs/{jobPosting:id}/exports', [ExportController::class, 'store'])->name('jobs.exports.store');
+        Route::get('exports/{export}/{type}', [ExportController::class, 'download'])->name('exports.download');
 
         Route::get('talent-pool', [TalentPoolController::class, 'index'])->name('talent-pool.index');
         Route::post('applicants/{applicant}/add-to-job', [ApplicantController::class, 'addToJob'])->name('applicants.add-to-job');

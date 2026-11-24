@@ -258,4 +258,19 @@ return [
         'done' => 'The applicant and all related data were permanently deleted.',
         'mismatch' => 'The phone number does not match. Nothing was deleted.',
     ],
+
+    'exports' => [
+        'title' => 'Export for client',
+        'hint' => 'Builds an Excel sheet and a ZIP of CVs for the chosen stages. Internal comments and stage history are never included.',
+        'stages' => 'Stages to include',
+        'create' => 'Create export',
+        'started' => 'Export started. Refresh this page in a minute to download it.',
+        'recent' => 'Recent exports',
+        'none' => 'No exports yet.',
+        'statuses' => ['pending' => 'Building', 'ready' => 'Ready', 'failed' => 'Failed'],
+        'pending_hint' => 'Refresh the page to check if it is ready.',
+        'failed_hint' => 'The export failed. Please try again.',
+        'download_xlsx' => 'Download Excel',
+        'download_zip' => 'Download CVs (ZIP)',
+    ],
 ];

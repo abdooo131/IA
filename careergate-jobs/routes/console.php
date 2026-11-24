@@ -12,7 +12,8 @@ Schedule::command('jobs:close-expired')->dailyAt('00:05')->timezone('Africa/Cair
 
 Schedule::command('backup:clean')->dailyAt('02:00')->timezone('Africa/Cairo');
 Schedule::command('backup:run --only-db')->dailyAt('02:00')->timezone('Africa/Cairo');
+Schedule::command('exports:prune')->dailyAt('02:30')->timezone('Africa/Cairo');
 Schedule::command('applicants:purge-expired')->dailyAt('03:00')->timezone('Africa/Cairo');
 
 // Shared hosting has no long running worker: drain the queue (export jobs) from the once a minute cron.
-Schedule::command('queue:work --stop-when-empty --max-time=50')->everyMinute()->withoutOverlapping();
+Schedule::command('queue:work --stop-when-empty --max-time=50')->everyMinute()->withoutOverlapping(5);

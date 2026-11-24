@@ -58,6 +58,11 @@ class JobPosting extends Model
         return $this->hasMany(Application::class);
     }
 
+    public function exports(): HasMany
+    {
+        return $this->hasMany(Export::class);
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';

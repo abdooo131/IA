@@ -54,7 +54,11 @@ class JobPostingController extends Controller
             $stageCounts[$stage->value] = (int) ($counts[$stage->value] ?? 0);
         }
 
-        return view('admin.jobs.show', ['job' => $jobPosting, 'stageCounts' => $stageCounts]);
+        return view('admin.jobs.show', [
+            'job' => $jobPosting,
+            'stageCounts' => $stageCounts,
+            'exports' => $jobPosting->exports()->with('user')->latest('id')->limit(10)->get(),
+        ]);
     }
 
     public function edit(JobPosting $jobPosting)

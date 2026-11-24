@@ -71,4 +71,40 @@
             @endforeach
         </dl>
     </section>
+
+    <section class="mt-6 rounded-lg bg-white p-6 shadow" id="exports">
+        <h2 class="font-bold">{{ __('admin.exports.title') }}</h2>
+        <p class="mt-1 text-sm text-cg-navy-light">{{ __('admin.exports.hint') }}</p>
+        <form method="POST" action="{{ route('admin.jobs.exports.store', $job) }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf
+            <div>
+                <label for="export-stages" class="block text-sm font-medium">{{ __('admin.exports.stages') }}</label>
+                <select id="export-stages" name="stages[]" multiple size="7" class="mt-1 rounded border border-gray-300 px-2 py-1">
+                    @foreach (\App\Enums\Stage::cases() as $stage)
+                        <option value="{{ $stage->value }}" @selected($stage === \App\Enums\Stage::Shortlisted)>{{ $stage->label() }} ({{ $stageCounts[$stage->value] }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <button class="rounded bg-cg-navy px-4 py-2 text-white hover:bg-cg-navy-light">{{ __('admin.exports.create') }}</button>
+        </form>
+
+        <h3 class="mt-6 text-sm font-bold">{{ __('admin.exports.recent') }}</h3>
+        @forelse ($exports as $export)
+            @php $statusClass = ['pending' => 'bg-yellow-100 text-yellow-800', 'ready' => 'bg-green-100 text-green-800', 'failed' => 'bg-red-100 text-red-800'][$export->status] ?? 'bg-gray-200'; @endphp
+            <div class="mt-2 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-2 text-sm" data-export="{{ $export->id }}">
+                <span dir="ltr">{{ $export->created_at->timezone('Africa/Cairo')->format('Y-m-d H:i') }}</span>
+                <span>{{ collect($export->stages)->map(fn ($s) => __('stages.'.$s))->implode(', ') }}</span>
+                <span class="rounded px-2 py-1 text-xs font-semibold {{ $statusClass }}">{{ __('admin.exports.statuses.'.$export->status) }}</span>
+                @if ($export->status === 'ready')
+                    <a class="underline" href="{{ route('admin.exports.download', [$export, 'xlsx']) }}">{{ __('admin.exports.download_xlsx') }}</a>
+                    <a class="underline" href="{{ route('admin.exports.download', [$export, 'zip']) }}">{{ __('admin.exports.download_zip') }}</a>
+                @elseif ($export->status === 'pending')
+                    <span class="text-cg-navy-light">{{ __('admin.exports.pending_hint') }}</span>
+                @else
+                    <span class="text-red-700">{{ __('admin.exports.failed_hint') }}</span>
+                @endif
+            </div>
+        @empty
+            <p class="mt-2 text-sm text-cg-navy-light">{{ __('admin.exports.none') }}</p>
+        @endforelse
+    </section>
 @endsection
