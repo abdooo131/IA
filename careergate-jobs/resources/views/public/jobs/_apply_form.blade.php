@@ -16,13 +16,13 @@
       data-msg-remove="{{ __('public.apply.remove') }}"
       data-msg-mixed="{{ __('public.apply.js_pdf_or_images') }}"
       data-msg-too-many="{{ __('public.apply.js_too_many') }}"
-      data-msg-too-large="{{ __('public.apply.js_too_large') }}"
+      data-msg-too-large="{{ __('public.apply.js_too_large', ['mb' => \App\Support\UploadLimits::maxFileMb()]) }}"
       data-msg-type="{{ __('public.apply.js_type') }}"
       data-msg-failed="{{ __('public.apply.js_failed') }}"
       data-msg-required="{{ __('public.apply.cv_required') }}"
       data-msg-upload-failed="{{ __('public.apply.js_upload_failed') }}"
       data-msg-one-pdf="{{ __('public.apply.js_one_pdf') }}"
-      data-max-kb="{{ config('careergate.cv.max_kb') }}" data-max-images="{{ config('careergate.cv.max_images') }}">
+      data-max-kb="{{ \App\Support\UploadLimits::maxFileKb() }}" data-max-images="{{ config('careergate.cv.max_images') }}">
     @csrf
 
     <p class="text-cg-navy-light">{{ __('public.apply.intro') }}</p>
@@ -127,7 +127,7 @@
 
     <fieldset class="rounded-lg bg-cg-yellow-light p-3" data-cv>
         <legend class="px-1 text-sm font-semibold">{{ __('public.apply.cv') }} *</legend>
-        <p class="text-sm text-cg-navy-light">{{ __('public.apply.cv_hint') }}</p>
+        <p class="text-sm text-cg-navy-light">{{ __('public.apply.cv_hint', ['mb' => \App\Support\UploadLimits::maxFileMb()]) }}</p>
 
         {{-- Plain input: works without JavaScript. JS hides it and shows the buttons below. --}}
         <input id="cv" name="cv[]" type="file" multiple required data-cv-input

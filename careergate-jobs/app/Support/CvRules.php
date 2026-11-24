@@ -15,7 +15,7 @@ class CvRules
     {
         return [
             'cv' => ['required', 'array', 'min:1', 'max:'.(int) config('careergate.cv.max_images')],
-            'cv.*' => ['file', 'mimetypes:'.self::MIMES, 'max:'.(int) config('careergate.cv.max_kb')],
+            'cv.*' => ['file', 'mimetypes:'.self::MIMES, 'max:'.UploadLimits::maxFileKb()],
         ];
     }
 
@@ -28,8 +28,8 @@ class CvRules
             'cv.max' => __('public.apply.cv_too_many'),
             'cv.*.mimetypes' => __('public.apply.cv_type'),
             'cv.*.file' => __('public.apply.cv_type'),
-            'cv.*.max' => __('public.cv_too_large'),
-            'cv.*.uploaded' => __('public.cv_too_large'),
+            'cv.*.max' => __('public.cv_too_large', ['mb' => UploadLimits::maxFileMb()]),
+            'cv.*.uploaded' => __('public.cv_too_large', ['mb' => UploadLimits::maxFileMb()]),
         ];
     }
 

@@ -27,6 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // the "file too large" error can be flashed back to the form.
         $middleware->remove(ValidatePostSize::class);
         $middleware->web(replace: [PreventRequestForgery::class => [ValidatePostSize::class, PreventRequestForgery::class]]);
+        // Proxies are trusted only when TRUSTED_PROXIES is set (see docs/deployment.md).
+        $middleware->replace(\Illuminate\Http\Middleware\TrustProxies::class, \App\Http\Middleware\TrustProxies::class);
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
         $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
     })
@@ -37,7 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             $locale = $request->segment(1) === 'ar' ? 'ar' : 'en';
 
-            return back()->withErrors(['cv' => __('public.cv_too_large', [], $locale)]);
+            return back()->withErrors(['cv' => __('public.cv_too_large', ['mb' => \App\Support\UploadLimits::maxFileMb()], $locale)]);
         });
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
             if ($request->expectsJson() || ! $request->routeIs('jobs.apply', 'ar.jobs.apply')) {

@@ -163,7 +163,7 @@ class ApplyTest extends TestCase
         $job = JobPosting::factory()->open()->create();
         $this->withServerVariables(['CONTENT_LENGTH' => 200 * 1024 * 1024])
             ->from("/ar/jobs/{$job->slug}")->post("/ar/jobs/{$job->slug}/apply", [])
-            ->assertRedirect("/ar/jobs/{$job->slug}")->assertSessionHasErrors(['cv' => __('public.cv_too_large', [], 'ar')]);
+            ->assertRedirect("/ar/jobs/{$job->slug}")->assertSessionHasErrors(['cv' => __('public.cv_too_large', ['mb' => \App\Support\UploadLimits::maxFileMb()], 'ar')]);
     }
 
     public function test_arabic_validation_messages(): void
