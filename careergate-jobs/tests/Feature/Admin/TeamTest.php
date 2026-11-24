@@ -44,7 +44,7 @@ class TeamTest extends TestCase
             return true;
         });
         $this->assertSame(10080, config('auth.passwords.invites.expire'));
-        $this->assertSame(config('auth.passwords.users.table'), config('auth.passwords.invites.table'));
+        $this->assertSame('team_invitation_tokens', config('auth.passwords.invites.table'));
     }
 
     public function test_invited_member_can_set_password_after_two_hours_but_normal_reset_links_still_expire(): void
@@ -82,6 +82,39 @@ class TeamTest extends TestCase
         $this->travel(8)->days();
         $this->post('/admin/reset-password', ['token' => $token, 'email' => 'sara@example.com', 'invite' => 1,
             'password' => 'brand-new-pass1', 'password_confirmation' => 'brand-new-pass1'])->assertSessionHasErrors('email');
+    }
+
+    public function test_forgot_password_token_cannot_be_redeemed_on_the_invite_path(): void
+    {
+        Notification::fake();
+        $u = User::factory()->recruiter()->create();
+        $this->post('/admin/forgot-password', ['email' => $u->email]);
+        $token = null;
+        Notification::assertSentTo($u, ResetPassword::class, function ($n) use (&$token) {
+            $token = $n->token;
+
+            return true;
+        });
+        $this->post('/admin/reset-password', ['token' => $token, 'email' => $u->email, 'invite' => 1,
+            'password' => 'brand-new-pass1', 'password_confirmation' => 'brand-new-pass1'])->assertSessionHasErrors('email');
+    }
+
+    public function test_invite_survives_a_forgot_password_request_for_the_same_email(): void
+    {
+        Notification::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post('/admin/team', ['name' => 'Sara', 'email' => 'sara@example.com', 'role' => 'recruiter']);
+        auth()->logout();
+        $sara = User::where('email', 'sara@example.com')->first();
+        $token = null;
+        Notification::assertSentTo($sara, TeamInvitation::class, function ($n) use (&$token) {
+            $token = $n->token;
+
+            return true;
+        });
+        $this->post('/admin/forgot-password', ['email' => 'sara@example.com']);
+        $this->post('/admin/reset-password', ['token' => $token, 'email' => 'sara@example.com', 'invite' => 1,
+            'password' => 'brand-new-pass1', 'password_confirmation' => 'brand-new-pass1'])->assertRedirect('/admin/login');
     }
 
     public function test_admin_can_resend_an_invite(): void

@@ -9,7 +9,7 @@ This guide puts Career Gate on shared hosting such as **Hostinger Business** (PH
 * A Hostinger Business (or similar) hosting plan with SSH access.
 * The domain (or the temporary Hostinger address) the site will live on.
 * An email account you can send from (for example `jobs@yourdomain.com`, created in hPanel under Emails). It is used for team invitations, password resets and backup alerts.
-* Access to the GitHub repository that holds the code (`https://github.com/abdooo131/IA`). If it is private you will need a GitHub personal access token (GitHub, Settings, Developer settings, Personal access tokens, "Tokens (classic)", tick `repo`). Use the token as the password when `git clone` asks for one.
+* Access to the GitHub repository that holds the code (`https://github.com/abdooo131/IA`). If it is private you will need a GitHub personal access token (GitHub, Settings, Developer settings, Personal access tokens, "Fine-grained tokens": choose only this one repository and give it read-only "Contents" access). Use the token as the password when `git clone` asks for one.
 
 Anything in `UPPER_CASE_LIKE_THIS` or `yourdomain.com` is a placeholder that you replace with your own value.
 
@@ -50,6 +50,8 @@ php -v
 composer --version
 ```
 
+If `composer` is not found, try `composer2`, or ask Hostinger support for the full path (use it in place of `composer` below).
+
 If `php -v` shows an older version, ask Hostinger support to set the command line PHP to 8.3, or use the full path they give you (for example `/opt/alt/php83/usr/bin/php`) in place of `php` in every command below **and in the cron line in step 10**.
 
 ## 4. Download the code
@@ -89,6 +91,8 @@ nano .env
 APP_NAME="Career Gate"
 APP_ENV=production
 APP_DEBUG=false
+LOG_LEVEL=error
+SESSION_SECURE_COOKIE=true
 APP_URL=https://yourdomain.com
 APP_TIMEZONE=Africa/Cairo
 
@@ -131,6 +135,7 @@ What the important ones mean:
 | Setting | Why it matters |
 | --- | --- |
 | `APP_ENV=production`, `APP_DEBUG=false` | Hides technical error details from visitors. **Never** set `APP_DEBUG=true` on the live site. |
+| `LOG_LEVEL=error`, `SESSION_SECURE_COOKIE=true` | Keeps the log small and makes login cookies travel only over https (turn SSL on first, step 9). |
 | `APP_URL` | The exact address of the site, with `https://`. Used in email links. |
 | `QUEUE_CONNECTION=database`, `DB_QUEUE_RETRY_AFTER=360` | Shortlist exports run in the background, started by the cron job in step 10. |
 | `MAIL_*` | Without working email, invitations and password resets do not arrive. |
@@ -146,10 +151,7 @@ What the important ones mean:
 cd ~/careergate-jobs
 php artisan migrate --force
 php artisan db:seed --class=AdminUserSeeder --force
-php artisan storage:link
 ```
-
-(`storage:link` is harmless; CVs are kept in a private folder and are only ever served to logged in team members.)
 
 Make sure the folders the app writes to are writable:
 
@@ -233,7 +235,7 @@ which mysqldump
 mysqldump --version
 ```
 
-Both should print something. If `which mysqldump` prints nothing, ask Hostinger support to enable `mysqldump` for your plan, or tell your developer: until it works, no backup is created.
+Both should print something. Backups also need PHP to be allowed to run programs (`proc_open` and `exec` must not be disabled in hPanel, PHP Configuration, "Disabled functions"). If `which mysqldump` prints nothing, ask Hostinger support to enable `mysqldump` for your plan, or tell your developer: until it works, no backup is created.
 
 **Try one backup now:**
 
@@ -245,12 +247,12 @@ php artisan backup:list
 
 **Where the files are, and how to download one**
 
-* Backups are `.zip` files in `careergate-jobs/storage/app/private/` (inside a folder named after the app, e.g. `Career Gate`).
+* Backups are `.zip` files in `careergate-jobs/storage/app/private/backups/`.
 * Easiest download: hPanel, **Files**, **File Manager**, open that folder, right click the newest `.zip`, **Download**.
 * Or from your own computer:
 
 ```bash
-scp -P 65002 "u123456789@YOUR_SERVER_IP:careergate-jobs/storage/app/private/Career Gate/*.zip" ~/Downloads/
+scp -P 65002 "u123456789@YOUR_SERVER_IP:careergate-jobs/storage/app/private/backups/*.zip" ~/Downloads/
 ```
 
 **Please download a backup to your own computer or cloud drive at least once a week.** The automatic backups live on the same server as the site, so they do not help if the hosting account itself is lost.

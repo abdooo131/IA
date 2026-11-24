@@ -100,10 +100,11 @@ return [
             'throttle' => 60,
         ],
 
-        // Team invitations: same token table, but the link stays valid for 7 days.
+        // Team invitations: their own token table (so they cannot be mixed up with
+        // forgot-password tokens), valid for 7 days.
         'invites' => [
             'provider' => 'users',
-            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'table' => 'team_invitation_tokens',
             'expire' => 10080,
             'throttle' => 0,
         ],

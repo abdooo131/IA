@@ -297,7 +297,7 @@ return [
      */
     'monitor_backups' => [
         [
-            'name' => env('APP_NAME', 'laravel-backup'),
+            'name' => 'backups', // must match backup.name above
             'disks' => ['local'],
             'health_checks' => [
                 MaximumAgeInDays::class => 1,

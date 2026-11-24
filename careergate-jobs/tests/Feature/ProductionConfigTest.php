@@ -95,4 +95,10 @@ class ProductionConfigTest extends TestCase
         $this->get("/jobs/{$job->slug}")->assertOk()->assertSee('data-max-kb="4096"', false)->assertSee('4 MB');
         \App\Support\UploadLimits::fake(null, null);
     }
+
+    public function test_security_headers_are_first_in_the_global_stack_and_backup_monitor_matches(): void
+    {
+        $this->assertSame(\App\Http\Middleware\SecurityHeaders::class, $this->app->make(\Illuminate\Contracts\Http\Kernel::class)->getGlobalMiddleware()[0]);
+        $this->assertSame(config('backup.backup.name'), config('backup.monitor_backups.0.name'));
+    }
 }

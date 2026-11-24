@@ -29,7 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(replace: [PreventRequestForgery::class => [ValidatePostSize::class, PreventRequestForgery::class]]);
         // Proxies are trusted only when TRUSTED_PROXIES is set (see docs/deployment.md).
         $middleware->replace(\Illuminate\Http\Middleware\TrustProxies::class, \App\Http\Middleware\TrustProxies::class);
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        // Prepended so even the maintenance (503) page carries the headers.
+        $middleware->prepend(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
         $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
     })

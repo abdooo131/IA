@@ -16,13 +16,14 @@ class ErrorPage
         }
 
         if ($request->is('admin', 'admin/*')) {
-            $locale = $request->user()?->locale;
-            if ($locale === null) {
-                try {
-                    $locale = $request->hasSession() ? $request->session()->get('admin_locale') : null;
-                } catch (\Throwable) {
-                    $locale = null;
+            // A database outage must not stop the branded 500 page from rendering.
+            try {
+                $locale = $request->user()?->locale;
+                if ($locale === null && $request->hasSession()) {
+                    $locale = $request->session()->get('admin_locale');
                 }
+            } catch (\Throwable) {
+                $locale = null;
             }
 
             return $locale === 'ar' ? 'ar' : 'en';
