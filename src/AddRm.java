@@ -1,8 +1,9 @@
-import java.awt.Dimension;
 import java.awt.EventQueue;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
+import java.awt.Color;
 import javax.swing.JLabel;
 import java.awt.Font;
 import javax.swing.JButton;
@@ -41,47 +42,41 @@ public class AddRm extends JFrame {
 	 */
 	public AddRm() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		Branding.applyFrame(this, "Add Raw Material");
-		setResizable(false);
+		setBounds(100, 100, 450, 300);
 		contentPane = new JPanel();
-		contentPane.setBackground(Branding.WHITE);
-		contentPane.setPreferredSize(new Dimension(450, 340));
+		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 
 		setContentPane(contentPane);
 		contentPane.setLayout(null);
 		
 		JPanel panel = new JPanel();
-		panel.setBackground(Branding.WHITE);
-		panel.setBounds(0, 70, 450, 270);
+		panel.setBackground(new Color(255, 128, 255));
+		panel.setBounds(0, 0, 434, 261);
 		contentPane.add(panel);
 		panel.setLayout(null);
 		
-		contentPane.add(Branding.header("Add Raw Material", 450, 70));
-		
 		JLabel lblRmName = new JLabel("Raw Material Name");
-		Branding.label(lblRmName);
-		lblRmName.setBounds(50, 44, 165, 22);
+		lblRmName.setFont(new Font("Times New Roman", Font.PLAIN, 15));
+		lblRmName.setBounds(50, 44, 126, 22);
 		panel.add(lblRmName);
 		
 		JLabel lblRmType = new JLabel("Pick measurement Type");
-		Branding.label(lblRmType);
-		lblRmType.setBounds(50, 118, 165, 22);
+		lblRmType.setFont(new Font("Times New Roman", Font.PLAIN, 15));
+		lblRmType.setBounds(50, 118, 152, 22);
 		panel.add(lblRmType);
 		
 		JLabel lblRmPrice = new JLabel("Raw Material Price");
-		Branding.label(lblRmPrice);
-		lblRmPrice.setBounds(50, 151, 165, 22);
+		lblRmPrice.setFont(new Font("Times New Roman", Font.PLAIN, 15));
+		lblRmPrice.setBounds(50, 151, 140, 22);
 		panel.add(lblRmPrice);
 		
-		JLabel lblAddRawMaterial = new JLabel("Raw Material Details");
-		lblAddRawMaterial.setFont(Branding.font(Font.BOLD, 15));
-		lblAddRawMaterial.setForeground(Branding.NAVY);
-		lblAddRawMaterial.setBounds(50, 6, 200, 22);
+		JLabel lblAddRawMaterial = new JLabel("Add Raw Material");
+		lblAddRawMaterial.setFont(new Font("Times New Roman", Font.PLAIN, 15));
+		lblAddRawMaterial.setBounds(157, 11, 120, 22);
 		panel.add(lblAddRawMaterial);
 		
 		JButton btnSave = new JButton("Save");
-		Branding.primaryButton(btnSave);
-		btnSave.setBounds(50, 205, 100, 30);
+		btnSave.setBounds(50, 197, 89, 23);
 		panel.add(btnSave);
 		
 		JButton btnReset = new JButton("Reset");
@@ -89,18 +84,16 @@ public class AddRm extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 			}
 		});
-		Branding.secondaryButton(btnReset);
-		btnReset.setBounds(172, 205, 100, 30);
+		btnReset.setBounds(176, 197, 89, 23);
 		panel.add(btnReset);
 		
 		JButton btnExit = new JButton("Exit");
-		Branding.outlineButton(btnExit);
-		btnExit.setBounds(295, 205, 100, 30);
+		btnExit.setBounds(306, 197, 89, 23);
 		panel.add(btnExit);
 		
 		JLabel lblRawMaterialCode = new JLabel("Raw Material Code");
-		Branding.label(lblRawMaterialCode);
-		lblRawMaterialCode.setBounds(50, 77, 165, 22);
+		lblRawMaterialCode.setFont(new Font("Times New Roman", Font.PLAIN, 15));
+		lblRawMaterialCode.setBounds(50, 77, 126, 22);
 		panel.add(lblRawMaterialCode);
 		
 		JSeparator separator = new JSeparator();
@@ -114,31 +107,22 @@ public class AddRm extends JFrame {
 		JComboBox comboBox = new JComboBox();
 		comboBox.setToolTipText("125\r\n");
 		comboBox.setModel(new DefaultComboBoxModel(new String[] {"Please pick one", "KG", "CM", "Per Unit"}));
-		comboBox.setFont(Branding.labelFont());
-		comboBox.setBackground(Branding.WHITE);
-		comboBox.setForeground(Branding.NAVY);
-		comboBox.setBounds(222, 117, 173, 24);
+		comboBox.setBounds(212, 119, 89, 22);
 		panel.add(comboBox);
 		
 		textRmName = new JTextField();
-		Branding.input(textRmName);
-		textRmName.setBounds(222, 44, 173, 24);
+		textRmName.setBounds(212, 46, 183, 20);
 		panel.add(textRmName);
 		textRmName.setColumns(10);
 		
 		textFieldRmCode = new JTextField();
 		textFieldRmCode.setColumns(10);
-		Branding.input(textFieldRmCode);
-		textFieldRmCode.setBounds(222, 77, 173, 24);
+		textFieldRmCode.setBounds(212, 79, 183, 20);
 		panel.add(textFieldRmCode);
 		
 		textFieldRmPrice = new JTextField();
 		textFieldRmPrice.setColumns(10);
-		Branding.input(textFieldRmPrice);
-		textFieldRmPrice.setBounds(222, 149, 173, 24);
+		textFieldRmPrice.setBounds(212, 151, 183, 20);
 		panel.add(textFieldRmPrice);
-		
-		pack();
-		setLocationRelativeTo(null);
 	}
 }
