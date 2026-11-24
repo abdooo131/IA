@@ -19,7 +19,7 @@
         $nav = [
             ['admin.dashboard', 'admin/', 'dashboard', url('/admin')],
             ['admin.jobs.index', 'admin/jobs*', 'jobs', url('/admin/jobs')],
-            ['admin.talent.index', 'admin/talent*', 'talent', url('/admin/talent')],
+            ['admin.talent-pool.index', 'admin/talent-pool*', 'talent', route('admin.talent-pool.index')],
             ['admin.clients.index', 'admin/clients*', 'clients', url('/admin/clients')],
         ];
         if (auth()->user()->isAdmin()) {

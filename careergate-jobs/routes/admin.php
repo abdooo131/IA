@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ApplicantController;
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\ApplicationStageController;
 use App\Http\Controllers\Admin\ClientCompanyController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Admin\JobPostingController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\LoginController;
 use App\Http\Controllers\Admin\PasswordResetController;
+use App\Http\Controllers\Admin\TalentPoolController;
 use App\Http\Controllers\Admin\TeamController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +48,9 @@ Route::prefix('admin')->group(function () {
         Route::post('applications/{application}/cv', [ApplicationController::class, 'replaceCv'])->name('applications.cv.replace');
         Route::get('cv-files/{cvFile}', [CvFileController::class, 'show'])->name('cv-files.show');
         Route::patch('applications/{application}/stage', [ApplicationStageController::class, 'update'])->name('applications.stage');
+
+        Route::get('talent-pool', [TalentPoolController::class, 'index'])->name('talent-pool.index');
+        Route::post('applicants/{applicant}/add-to-job', [ApplicantController::class, 'addToJob'])->name('applicants.add-to-job');
 
         Route::middleware('admin')->group(function () {
             Route::delete('jobs/{jobPosting:id}', [JobPostingController::class, 'destroy'])->name('jobs.destroy');

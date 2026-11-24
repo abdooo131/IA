@@ -41,7 +41,7 @@
         $cvFiles = $application->cvFiles;
         $pdf = $cvFiles->first(fn ($f) => $f->mime === 'application/pdf');
         $images = $cvFiles->filter(fn ($f) => str_starts_with($f->mime, 'image/'));
-        $phoneLocal = '0'.substr($applicant->phone, 3);
+        $phoneLocal = \App\Support\PhoneNumber::toLocal($applicant->phone);
         $sourceKey = 'admin.application.sources.'.$application->source;
     @endphp
 
@@ -167,7 +167,7 @@
                 <dl class="mt-3 space-y-2 text-sm">
                     <div><dt class="text-cg-navy-light">{{ __('admin.application.phone') }}</dt>
                         <dd class="flex items-center gap-3"><span dir="ltr">{{ $phoneLocal }}</span>
-                            <a href="https://wa.me/{{ substr($applicant->phone, 1) }}" target="_blank" rel="noopener" class="text-green-700 underline">{{ __('admin.application.whatsapp') }}</a></dd></div>
+                            <a href="https://wa.me/{{ \App\Support\PhoneNumber::toWhatsApp($applicant->phone) }}" target="_blank" rel="noopener" class="text-green-700 underline">{{ __('admin.application.whatsapp') }}</a></dd></div>
                     <div><dt class="text-cg-navy-light">{{ __('admin.application.email') }}</dt><dd dir="ltr" class="text-start">{{ $applicant->email ?: $none }}</dd></div>
                     <div><dt class="text-cg-navy-light">{{ __('admin.application.location') }}</dt><dd>{{ collect([$applicant->city, $applicant->area])->filter()->implode(' / ') ?: $none }}</dd></div>
                     <div><dt class="text-cg-navy-light">{{ __('admin.application.age') }}</dt><dd>{{ $applicant->age() !== null ? __('admin.application.age_years', ['age' => $applicant->age()]) : $none }}</dd></div>

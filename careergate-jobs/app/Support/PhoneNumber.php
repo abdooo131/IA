@@ -26,4 +26,16 @@ class PhoneNumber
 
         return preg_match('/^1[0125]\d{8}$/', $digits) ? '+20'.$digits : null;
     }
+
+    /** +201012345678 -> 01012345678 */
+    public static function toLocal(string $e164): string
+    {
+        return '0'.substr($e164, 3);
+    }
+
+    /** +201012345678 -> 201012345678 (digits for wa.me links) */
+    public static function toWhatsApp(string $e164): string
+    {
+        return ltrim($e164, '+');
+    }
 }

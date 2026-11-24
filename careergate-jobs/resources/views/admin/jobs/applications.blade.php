@@ -87,13 +87,13 @@
                         <td class="px-4 py-3 font-medium">
                             @if ($showRoute)<a href="{{ route('admin.applications.show', $app) }}" class="underline">{{ $ap->full_name }}</a>@else{{ $ap->full_name }}@endif
                         </td>
-                        <td class="px-4 py-3" dir="ltr">{{ '0'.substr($ap->phone, 3) }}</td>
+                        <td class="px-4 py-3" dir="ltr">{{ \App\Support\PhoneNumber::toLocal($ap->phone) }}</td>
                         <td class="px-4 py-3">{{ collect([$ap->area, $ap->city])->filter()->implode(', ') ?: '—' }}</td>
                         <td class="px-4 py-3"><span class="rounded px-2 py-1 text-xs font-semibold {{ $badge[$app->stage->value] }}">{{ $app->stage->label() }}</span></td>
                         <td class="px-4 py-3">{{ $app->created_at->timezone('Africa/Cairo')->format('Y-m-d') }}</td>
                         <td class="px-4 py-3" data-comment-count="{{ $app->comments_count }}">{{ $app->comments_count }}</td>
                         <td class="px-4 py-3">
-                            <a href="https://wa.me/{{ substr($ap->phone, 1) }}" target="_blank" rel="noopener" class="inline-flex text-green-700 hover:text-green-900" aria-label="{{ __('admin.applications.whatsapp') }}: {{ $ap->full_name }}">
+                            <a href="https://wa.me/{{ \App\Support\PhoneNumber::toWhatsApp($ap->phone) }}" target="_blank" rel="noopener" class="inline-flex text-green-700 hover:text-green-900" aria-label="{{ __('admin.applications.whatsapp') }}: {{ $ap->full_name }}">
                                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.800-1.100-4.600-4-4.700-4.200-.1-.2-1.100-1.500-1.100-2.900s.7-2.100 1-2.400c.2-.3.500-.3.700-.3h.5c.2 0 .4 0 .6.500l.8 2c.1.200.1.300 0 .5l-.3.400-.4.500c-.1.100-.3.300-.1.600.2.300.8 1.300 1.700 2.100 1.100 1 2.100 1.300 2.400 1.400.3.100.5.100.6-.1l.9-1.100c.2-.3.400-.2.600-.1l1.900.9c.3.100.5.200.5.300.1.200.1.800-.1 1.300Z"/></svg>
                             </a>
                         </td>

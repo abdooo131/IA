@@ -94,6 +94,44 @@ class CvStorage
         }
     }
 
+    /**
+     * Copy the source application's current CV files to the target application: new physical
+     * files under the target's folder with new names, plus matching rows. If anything fails,
+     * the files written by this call are removed again and the exception is rethrown.
+     *
+     * @return Collection<int, CvFile>
+     */
+    public function copyCurrent(Application $source, Application $target): Collection
+    {
+        $disk = Storage::disk(self::DISK);
+        $written = [];
+        $rows = collect();
+
+        try {
+            foreach ($source->cvFiles()->get() as $file) {
+                $ext = pathinfo($file->path, PATHINFO_EXTENSION);
+                $path = "cvs/{$target->id}/".Str::uuid()->toString().($ext !== '' ? '.'.$ext : '');
+                if (! $disk->exists($file->path) || ! $disk->copy($file->path, $path)) {
+                    throw new \RuntimeException("Could not copy CV file {$file->id}.");
+                }
+                $written[] = $path;
+
+                $rows->push($target->allCvFiles()->create([
+                    'original_name' => $file->original_name,
+                    'path' => $path,
+                    'mime' => $file->mime,
+                    'size' => $file->size,
+                    'position' => $file->position,
+                ]));
+            }
+        } catch (Throwable $e) {
+            $disk->delete($written);
+            throw $e;
+        }
+
+        return $rows;
+    }
+
     /** @param  iterable<int, string>  $paths */
     public function delete(iterable $paths): void
     {

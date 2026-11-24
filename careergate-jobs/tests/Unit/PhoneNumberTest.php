@@ -26,4 +26,10 @@ class PhoneNumberTest extends TestCase
             $this->assertNull(PhoneNumber::normalize($bad), $bad);
         }
     }
+
+    public function test_formats_local_and_whatsapp(): void
+    {
+        $this->assertSame('01012345678', PhoneNumber::toLocal('+201012345678'));
+        $this->assertSame('201012345678', PhoneNumber::toWhatsApp('+201012345678'));
+    }
 }
