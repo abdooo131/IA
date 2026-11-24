@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ApplicationController;
+use App\Http\Controllers\Admin\ApplicationStageController;
 use App\Http\Controllers\Admin\ClientCompanyController;
 use App\Http\Controllers\Admin\JobPostingController;
 use App\Http\Controllers\Admin\LanguageController;
@@ -33,6 +35,10 @@ Route::prefix('admin')->group(function () {
         Route::put('jobs/{jobPosting:id}', [JobPostingController::class, 'update'])->name('jobs.update');
         Route::post('jobs/{jobPosting:id}/duplicate', [JobPostingController::class, 'duplicate'])->name('jobs.duplicate');
         Route::patch('jobs/{jobPosting:id}/status', [JobPostingController::class, 'status'])->name('jobs.status');
+
+        Route::get('jobs/{jobPosting:id}/applications', [ApplicationController::class, 'index'])->name('jobs.applications');
+        Route::patch('jobs/{jobPosting:id}/applications/bulk-stage', [ApplicationStageController::class, 'bulk'])->name('jobs.applications.bulk-stage');
+        Route::patch('applications/{application}/stage', [ApplicationStageController::class, 'update'])->name('applications.stage');
 
         Route::middleware('admin')->group(function () {
             Route::delete('jobs/{jobPosting:id}', [JobPostingController::class, 'destroy'])->name('jobs.destroy');

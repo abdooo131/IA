@@ -29,3 +29,21 @@ document.addEventListener('click', (event) => {
         done();
     }
 });
+
+// Applications list: select-all checkbox and selected counter for the bulk bar.
+document.querySelectorAll('[data-bulk-form]').forEach((form) => {
+    const all = form.querySelector('[data-select-all]');
+    const rows = () => Array.from(form.querySelectorAll('[data-row-check]'));
+    const counter = form.querySelector('[data-selected-count]');
+    const refresh = () => {
+        const checked = rows().filter((c) => c.checked).length;
+        if (counter) counter.textContent = checked;
+        if (all) {
+            all.checked = checked > 0 && checked === rows().length;
+            all.indeterminate = checked > 0 && checked < rows().length;
+        }
+    };
+    all?.addEventListener('change', () => { rows().forEach((c) => { c.checked = all.checked; }); refresh(); });
+    form.addEventListener('change', (e) => { if (e.target.matches('[data-row-check]')) refresh(); });
+    refresh();
+});
