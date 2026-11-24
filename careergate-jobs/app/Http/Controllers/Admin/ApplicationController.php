@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Stage;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ReplaceCvRequest;
 use App\Models\Application;
 use App\Models\JobPosting;
+use App\Services\CvStorage;
 use App\Support\LikePattern;
 use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
@@ -74,5 +76,44 @@ class ApplicationController extends Controller
             'cities' => $cities,
             'filters' => ['city' => $city, 'area' => $area, 'q' => $q, 'from' => $from, 'to' => $to, 'sort' => $sort],
         ]);
+    }
+
+    public function show(Application $application)
+    {
+        $application->load([
+            'applicant',
+            'jobPosting',
+            'cvFiles',
+            'stageChanges' => fn ($q) => $q->reorder('id', 'desc'),
+            'stageChanges.user:id,name',
+            'comments' => fn ($q) => $q->reorder('id', 'asc'),
+            'comments.user:id,name',
+        ]);
+
+        $replaced = $application->allCvFiles()->whereNotNull('replaced_at')->with('replacedBy:id,name')
+            ->reorder('replaced_at', 'desc')->orderBy('position')->get();
+
+        $others = Application::query()
+            ->where('applicant_id', $application->applicant_id)
+            ->where('id', '!=', $application->id)
+            ->with('jobPosting')
+            ->latest('id')
+            ->get();
+
+        return view('admin.applications.show', [
+            'application' => $application,
+            'applicant' => $application->applicant,
+            'job' => $application->jobPosting,
+            'replaced' => $replaced,
+            'others' => $others,
+        ]);
+    }
+
+    public function replaceCv(ReplaceCvRequest $request, Application $application, CvStorage $storage)
+    {
+        $storage->replace($application, array_values($request->file('cv')), $request->user());
+
+        return redirect()->to(route('admin.applications.show', $application).'#cv')
+            ->with('status', __('admin.application.cv_replaced'));
     }
 }

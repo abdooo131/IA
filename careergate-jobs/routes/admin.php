@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\ApplicationStageController;
 use App\Http\Controllers\Admin\ClientCompanyController;
+use App\Http\Controllers\Admin\CommentController;
+use App\Http\Controllers\Admin\CvFileController;
 use App\Http\Controllers\Admin\JobPostingController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\LoginController;
@@ -38,6 +40,11 @@ Route::prefix('admin')->group(function () {
 
         Route::get('jobs/{jobPosting:id}/applications', [ApplicationController::class, 'index'])->name('jobs.applications');
         Route::patch('jobs/{jobPosting:id}/applications/bulk-stage', [ApplicationStageController::class, 'bulk'])->name('jobs.applications.bulk-stage');
+        Route::get('applications/{application}', [ApplicationController::class, 'show'])->name('applications.show');
+        Route::post('applications/{application}/comments', [CommentController::class, 'store'])->name('applications.comments.store');
+        Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+        Route::post('applications/{application}/cv', [ApplicationController::class, 'replaceCv'])->name('applications.cv.replace');
+        Route::get('cv-files/{cvFile}', [CvFileController::class, 'show'])->name('cv-files.show');
         Route::patch('applications/{application}/stage', [ApplicationStageController::class, 'update'])->name('applications.stage');
 
         Route::middleware('admin')->group(function () {
